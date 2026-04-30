@@ -186,7 +186,7 @@ export default function NonConformites() {
             <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Enregistrer une non-conformité</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>Référence *</Label><Input value={newNC.reference} onChange={(e) => setNewNC({ ...newNC, reference: e.target.value })} placeholder="NC-2026-001" /></div>
                   <div className="space-y-2">
                     <Label>Gravité</Label>
@@ -201,11 +201,11 @@ export default function NonConformites() {
                   </div>
                 </div>
                 <div className="space-y-2"><Label>Description *</Label><Textarea value={newNC.description} onChange={(e) => setNewNC({ ...newNC, description: e.target.value })} /></div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>Nature de la NC</Label><Input value={newNC.nature_nc} onChange={(e) => setNewNC({ ...newNC, nature_nc: e.target.value })} placeholder="Produit, processus, système..." /></div>
                   <div className="space-y-2"><Label>Criticité (1-5)</Label><Input type="number" min={1} max={5} value={newNC.criticite} onChange={(e) => setNewNC({ ...newNC, criticite: e.target.value })} /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>Origine</Label><Input value={newNC.origine} onChange={(e) => setNewNC({ ...newNC, origine: e.target.value })} placeholder="Audit, réclamation, interne..." /></div>
                   <div className="space-y-2">
                     <Label>Audit lié</Label>
@@ -408,7 +408,7 @@ export default function NonConformites() {
                   const frozen = originalStatut === "cloturee";
                   return (<>
                 <TabsContent value="general" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>Référence</Label><Input value={editNC.reference} onChange={(e) => setEditNC({ ...editNC, reference: e.target.value })} disabled={frozen} /></div>
                     <div className="space-y-2">
                       <Label>Statut (workflow)</Label>
@@ -427,7 +427,7 @@ export default function NonConformites() {
                     </div>
                   </div>
                   <div className="space-y-2"><Label>Description</Label><Textarea value={editNC.description} onChange={(e) => setEditNC({ ...editNC, description: e.target.value })} disabled={frozen} /></div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Gravité</Label>
                       <Select value={editNC.gravite} onValueChange={(v) => setEditNC({ ...editNC, gravite: v })} disabled={frozen}>
@@ -441,11 +441,11 @@ export default function NonConformites() {
                     </div>
                     <div className="space-y-2"><Label>Criticité (1-5)</Label><Input type="number" min={1} max={5} value={editNC.criticite ?? ""} onChange={(e) => setEditNC({ ...editNC, criticite: e.target.value ? parseInt(e.target.value) : null })} disabled={frozen} /></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>Nature</Label><Input value={editNC.nature_nc ?? ""} onChange={(e) => setEditNC({ ...editNC, nature_nc: e.target.value })} disabled={frozen} /></div>
                     <div className="space-y-2"><Label>Origine</Label><Input value={editNC.origine ?? ""} onChange={(e) => setEditNC({ ...editNC, origine: e.target.value })} disabled={frozen} /></div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Audit lié</Label>
                       <Select value={editNC.audit_id ?? ""} onValueChange={(v) => setEditNC({ ...editNC, audit_id: v || null })} disabled={frozen}>
