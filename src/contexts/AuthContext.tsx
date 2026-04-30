@@ -57,6 +57,10 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
+// Profile columns actually used across the app — avoid SELECT *
+const PROFILE_COLS = "id, nom, prenom, email, fonction, actif, acteur_id, photo_url";
+const ROLE_PERM_COLS = "role, module, can_read, can_read_detail, can_edit, can_delete";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -65,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
   const [customRoleIds, setCustomRoleIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const [coreLoaded, setCoreLoaded] = useState(false);
   const [permOverrides, setPermOverrides] = useState<Record<string, ModulePermissions>>({});
   const [customRolePerms, setCustomRolePerms] = useState<CustomRolePermissions>({});
   const fetchGenRef = useRef(0);
@@ -79,36 +83,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasPermission = useCallback(
     (module: AppModule, level: PermissionLevel): boolean => {
       if (roles.length === 0 && customRoleIds.length === 0) return false;
-      // Block edit/delete when license expired
       if (isLicenseReadOnly() && (level === "can_edit" || level === "can_delete")) return false;
       return getEffectivePermission(roles, module, level, permOverrides, customRoleIds, customRolePerms);
     },
     [roles, permOverrides, customRoleIds, customRolePerms]
   );
 
+  /**
+   * Loads ALL user-related data in a single Promise.all for maximum parallelism.
+   * The app becomes interactive as soon as profile + roles are set (coreLoaded),
+   * permission overrides land slightly after (no UI blocker).
+   */
   const fetchUserData = async (userId: string, force = false) => {
-    // Skip duplicate fetches for the same user unless forced
-    if (!force && lastFetchedUserId.current === userId && dataLoaded) return;
+    if (!force && lastFetchedUserId.current === userId && coreLoaded) return;
     const gen = ++fetchGenRef.current;
     lastFetchedUserId.current = userId;
+
     try {
-      setDataLoaded(false);
+      // 4 critical queries in parallel + 1 secondary that we await separately
       const [profileRes, rolesRes, permRes, userCustomRolesRes] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", userId).single(),
+        supabase.from("profiles").select(PROFILE_COLS).eq("id", userId).maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", userId),
-        supabase.from("role_permissions").select("*"),
-        supabase.from("user_custom_roles").select("custom_role_id, custom_roles(id, nom, description)").eq("user_id", userId),
+        supabase.from("role_permissions").select(ROLE_PERM_COLS),
+        supabase
+          .from("user_custom_roles")
+          .select("custom_role_id, custom_roles(id, nom, description)")
+          .eq("user_id", userId),
       ]);
 
-      // Stale response — a newer fetch was started
+      // Stale response guard
       if (gen !== fetchGenRef.current) return;
 
       if (profileRes.data) setProfile(profileRes.data as Profile);
-      if (rolesRes.data) {
-        setRoles(rolesRes.data.map((r) => r.role as AppRole));
-      }
+      if (rolesRes.data) setRoles(rolesRes.data.map((r) => r.role as AppRole));
 
-      // Standard role overrides
       if (permRes.data) {
         const overrides: Record<string, ModulePermissions> = {};
         for (const row of permRes.data) {
@@ -122,77 +130,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setPermOverrides(overrides);
       }
 
-      // Custom roles
+      let crIds: string[] = [];
       if (userCustomRolesRes.data) {
-        const crIds: string[] = [];
         const crs: CustomRole[] = [];
         for (const ucr of userCustomRolesRes.data as any[]) {
           crIds.push(ucr.custom_role_id);
-          if (ucr.custom_roles) {
-            crs.push(ucr.custom_roles as CustomRole);
-          }
+          if (ucr.custom_roles) crs.push(ucr.custom_roles as CustomRole);
         }
         setCustomRoleIds(crIds);
         setCustomRoles(crs);
+      }
 
-        // Load custom role permissions
-        if (crIds.length > 0) {
-          const { data: crpData } = await supabase
-            .from("custom_role_permissions")
-            .select("*")
-            .in("custom_role_id", crIds);
-          if (crpData) {
-            const crPerms: CustomRolePermissions = {};
-            for (const row of crpData) {
-              crPerms[`${row.custom_role_id}:${row.module}`] = {
-                can_read: row.can_read,
-                can_read_detail: row.can_read_detail,
-                can_edit: row.can_edit,
-                can_delete: row.can_delete,
-              };
-            }
-            setCustomRolePerms(crPerms);
+      // Mark core as loaded BEFORE the secondary fetch so the UI unblocks immediately
+      setCoreLoaded(true);
+
+      // Secondary: custom-role permissions (only if needed)
+      if (crIds.length > 0) {
+        const { data: crpData } = await supabase
+          .from("custom_role_permissions")
+          .select("custom_role_id, module, can_read, can_read_detail, can_edit, can_delete")
+          .in("custom_role_id", crIds);
+        if (gen !== fetchGenRef.current) return;
+        if (crpData) {
+          const crPerms: CustomRolePermissions = {};
+          for (const row of crpData) {
+            crPerms[`${row.custom_role_id}:${row.module}`] = {
+              can_read: row.can_read,
+              can_read_detail: row.can_read_detail,
+              can_edit: row.can_edit,
+              can_delete: row.can_delete,
+            };
           }
+          setCustomRolePerms(crPerms);
         }
+      } else {
+        setCustomRolePerms({});
       }
     } catch (err) {
       console.error("Error fetching user data:", err);
-    } finally {
-      if (gen === fetchGenRef.current) {
-        setDataLoaded(true);
-      }
+      // Even on partial failure, don't keep the UI hostage forever
+      if (gen === fetchGenRef.current) setCoreLoaded(true);
     }
   };
 
   useEffect(() => {
-    let initialSessionHandled = false;
-
+    // Single source of truth: onAuthStateChange handles INITIAL_SESSION too
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        // Token refresh (souvent déclenché au retour sur l'onglet) :
-        // mettre à jour la session sans re-fetch des données (évite les re-renders qui effacent les saisies)
+      (event, newSession) => {
+        // Token refresh → just update the session, no re-fetch
         if (event === "TOKEN_REFRESHED") {
-          setSession(session);
+          setSession(newSession);
           return;
         }
-        // SIGNED_IN peut être redéclenché par Supabase au retour de focus de l'onglet
-        // alors que l'utilisateur n'a pas réellement changé. Dans ce cas on ignore
-        // pour éviter de relancer fetchUserData et provoquer la réinitialisation des formulaires.
-        if (event === "SIGNED_IN" && session?.user?.id && lastFetchedUserId.current === session.user.id) {
-          setSession(session);
+
+        // Tab focus may re-emit SIGNED_IN with the same user → ignore to keep form state
+        if (
+          event === "SIGNED_IN" &&
+          newSession?.user?.id &&
+          lastFetchedUserId.current === newSession.user.id
+        ) {
+          setSession(newSession);
           return;
         }
-        // INITIAL_SESSION est aussi géré par getSession() ci-dessous
-        if (event === "INITIAL_SESSION") {
-          return;
-        }
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          // On initial load, getSession handles the fetch — skip here
-          if (initialSessionHandled) {
-            setTimeout(() => fetchUserData(session.user.id, true), 0);
-          }
+
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+
+        if (newSession?.user) {
+          // Defer DB calls to avoid running inside the auth callback
+          setTimeout(() => fetchUserData(newSession.user.id), 0);
         } else {
           setProfile(null);
           setRoles([]);
@@ -201,21 +207,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setPermOverrides({});
           setCustomRolePerms({});
           lastFetchedUserId.current = null;
-          setDataLoaded(false);
+          setCoreLoaded(false);
         }
         setLoading(false);
       }
     );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      initialSessionHandled = true;
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserData(session.user.id);
-      }
-      setLoading(false);
-    });
 
     return () => subscription.unsubscribe();
   }, []);
@@ -232,13 +228,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCustomRolePerms({});
     lastFetchedUserId.current = null;
     fetchGenRef.current++;
+    setCoreLoaded(false);
   };
 
-  // Backward compat: role = first role (priority: admin > rmq > others)
+  // Backward compat: role = highest priority role
   const priorityOrder: AppRole[] = ["super_admin", "admin", "rmq", "responsable_processus", "consultant", "auditeur", "acteur"];
   const role = priorityOrder.find((r) => roles.includes(r)) ?? null;
 
-  const isFullyLoaded = !loading && (user ? dataLoaded : true);
+  // App is ready when: not in initial bootstrap AND (no user OR core data loaded)
+  const isFullyLoaded = !loading && (user ? coreLoaded : true);
 
   return (
     <AuthContext.Provider value={{ user, session, profile, roles, customRoles, role, loading: !isFullyLoaded, hasRole, hasPermission, signOut }}>
