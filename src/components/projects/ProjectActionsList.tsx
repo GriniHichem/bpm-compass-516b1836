@@ -175,7 +175,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
       .eq("project_id", projectId)
       .order("ordre");
     if (error) { console.error("Fetch actions error:", error); toast.error("Erreur chargement actions: " + error.message); return; }
-    const acts = (data ?? []).map((d: any) => ({ ...d, multi_tasks: d.multi_tasks ?? false, pinned: d.pinned ?? false, responsable_id_2: d.responsable_id_2 ?? null, responsable_id_3: d.responsable_id_3 ?? null, poids: d.poids ?? null })) as ProjectAction[];
+    const acts = (data ?? []).map((d: any) => ({ ...d, multi_tasks: d.multi_tasks ?? false, pinned: d.pinned ?? false, responsable_id_2: d.responsable_id_2 ?? null, responsable_id_3: d.responsable_id_3 ?? null, responsable_user_id_2: d.responsable_user_id_2 ?? null, responsable_user_id_3: d.responsable_user_id_3 ?? null, poids: d.poids ?? null })) as ProjectAction[];
     setActions(acts);
 
     const r2 = new Set<string>();
