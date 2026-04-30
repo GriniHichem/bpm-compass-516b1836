@@ -1086,12 +1086,18 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                                   onChange={(acteurId, userId) => updateTask(task.id, { responsable_id: acteurId, responsable_user_id: userId })}
                                 />
                               )}
-                              {(!canEdit || isFrozen || task.statut === "termine") && task.responsable_id && (
-                                <span className="text-[10px] text-muted-foreground">
-                                  {getActeurLabel(task.responsable_id)}
-                                  {task.responsable_user_id && formatRespUserName(task.responsable_user_id) ? ` — ${formatRespUserName(task.responsable_user_id)}` : ""}
-                                </span>
-                              )}
+                              {(!canEdit || isFrozen || task.statut === "termine") && task.responsable_id && (() => {
+                                const userName = task.responsable_user_id ? formatRespUserName(task.responsable_user_id) : null;
+                                const fonction = getActeurLabel(task.responsable_id);
+                                const display = userName || fonction;
+                                const tooltip = userName && fonction ? `${userName} — ${fonction}` : (userName || fonction || "");
+                                return (
+                                  <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground max-w-[140px]" title={tooltip}>
+                                    <User className="h-3 w-3 shrink-0" />
+                                    <span className="truncate">{display}</span>
+                                  </span>
+                                );
+                              })()}
                               {canEdit && !isFrozen && task.statut !== "termine" ? (
                                 <Input
                                   type="date"
