@@ -291,4 +291,34 @@
   .focus-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
+
+  /* ===== Mobile/Tablet UX utilities ===== */
+
+  /* iOS safe-area helpers */
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .pt-safe {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+
+  /* Touch target ≥ 44px (Apple HIG) on critical actions */
+  .tap-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Horizontal-scroll tabs/lists with edge fade */
+  .scroll-fade-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    mask-image: linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent);
+  }
+  .scroll-fade-x::-webkit-scrollbar { display: none; }
+
+  /* Prevent body scroll behind open sheets/modals */
+  .overscroll-lock {
+    overscroll-behavior: contain;
+  }
 }
