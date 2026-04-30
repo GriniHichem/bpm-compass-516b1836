@@ -1075,7 +1075,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                               ) : (
                                 <TaskIcon className={`h-4 w-4 shrink-0 ${ts.class}`} />
                               )}
-                              <span className={`text-sm flex-1 ${task.statut === "termine" ? "line-through text-muted-foreground" : ""}`}>
+                              <span className={`text-sm flex-1 ${task.statut === "termine" ? "text-muted-foreground" : ""}`}>
                                 {task.title}
                               </span>
                               {canEdit && !isFrozen && task.statut !== "termine" && (
