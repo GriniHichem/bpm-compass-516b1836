@@ -782,9 +782,16 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                           <DateIndicator echeance={action.echeance} statut={action.statut} />
                         </span>
                       )}
-                      {action.responsable_id && <span>• {getActeurLabel(action.responsable_id)}{action.responsable_user_id && formatRespUserName(action.responsable_user_id) ? ` — ${formatRespUserName(action.responsable_user_id)}` : ""}</span>}
-                      {action.responsable_id_2 && <span>• {getActeurLabel(action.responsable_id_2)}</span>}
-                      {action.responsable_id_3 && <span>• {getActeurLabel(action.responsable_id_3)}</span>}
+                      {(() => {
+                        const r1 = respLabel(action.responsable_id, action.responsable_user_id);
+                        const r2 = respLabel(action.responsable_id_2, action.responsable_user_id_2);
+                        const r3 = respLabel(action.responsable_id_3, action.responsable_user_id_3);
+                        return <>
+                          {r1 && <span className="inline-flex items-center gap-1">• <User className="h-3 w-3" />{r1}</span>}
+                          {r2 && <span className="inline-flex items-center gap-1">• <User className="h-3 w-3" />{r2}</span>}
+                          {r3 && <span className="inline-flex items-center gap-1">• <User className="h-3 w-3" />{r3}</span>}
+                        </>;
+                      })()}
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
