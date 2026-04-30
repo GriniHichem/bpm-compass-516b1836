@@ -191,7 +191,7 @@ export default function Audits() {
             <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Planifier un audit</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>Référence *</Label><Input value={newAudit.reference} onChange={(e) => setNewAudit({ ...newAudit, reference: e.target.value })} placeholder="AUD-2026-001" /></div>
                   <div className="space-y-2">
                     <Label>Type</Label>
@@ -204,7 +204,7 @@ export default function Audits() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>Date prévue</Label><Input type="date" value={newAudit.date_audit} onChange={(e) => setNewAudit({ ...newAudit, date_audit: e.target.value })} /></div>
                   <div className="space-y-2"><Label>Fréquence</Label><Input value={newAudit.frequence} onChange={(e) => setNewAudit({ ...newAudit, frequence: e.target.value })} placeholder="Annuelle, semestrielle..." /></div>
                 </div>
@@ -290,7 +290,7 @@ export default function Audits() {
                 </TabsList>
 
                 <TabsContent value="general" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div><Label className="text-muted-foreground text-xs">Type</Label><p className="font-medium">{detailAudit.type_audit}</p></div>
                     <div><Label className="text-muted-foreground text-xs">Statut</Label><p><Badge className={statusColors[detailAudit.statut] ?? ""}>{statusLabels[detailAudit.statut] ?? detailAudit.statut}</Badge></p></div>
                     <div><Label className="text-muted-foreground text-xs">Date début</Label><p className="font-medium">{detailAudit.date_audit ?? "—"}</p></div>
@@ -351,7 +351,7 @@ export default function Audits() {
                     <Card>
                       <CardHeader><CardTitle className="text-sm">Ajouter un constat</CardTitle></CardHeader>
                       <CardContent className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1">
                             <Label className="text-xs">Type</Label>
                             <Select value={newFinding.type_constat} onValueChange={(v) => setNewFinding({ ...newFinding, type_constat: v })}>
@@ -418,7 +418,7 @@ export default function Audits() {
                 </TabsList>
 
                 <TabsContent value="general" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>Référence</Label><Input value={editAudit.reference} onChange={(e) => setEditAudit({ ...editAudit, reference: e.target.value })} /></div>
                     <div className="space-y-2">
                       <Label>Type</Label>
