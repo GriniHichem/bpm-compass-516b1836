@@ -907,17 +907,18 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
 
                       {/* Responsables row */}
                       <div className="flex flex-wrap items-end gap-2">
-                        {renderResponsableR1(action)}
+                        {renderResponsable(action, { acteur: "responsable_id", user: "responsable_user_id" }, "Responsable 1")}
 
                         {hasResp2 ? (
-                          <div className="flex items-end gap-1">
-                            <ResponsableSelector actionId={action.id} field="responsable_id_2" value={action.responsable_id_2} label="Responsable 2" />
+                          <div className="flex items-start gap-1">
+                            {renderResponsable(action, { acteur: "responsable_id_2", user: "responsable_user_id_2" }, "Responsable 2")}
                             <Button
-                              variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              variant="ghost" size="icon" className="h-8 w-8 mt-4 text-muted-foreground hover:text-destructive"
                               onClick={() => {
-                                updateAction(action.id, { responsable_id_2: null });
+                                updateAction(action.id, { responsable_id_2: null, responsable_user_id_2: null });
                                 setShowResp2(prev => { const n = new Set(prev); n.delete(action.id); return n; });
                               }}
+                              title="Retirer Responsable 2"
                             >
                               <X className="h-3 w-3" />
                             </Button>
@@ -932,14 +933,15 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                         )}
 
                         {hasResp2 && (hasResp3 ? (
-                          <div className="flex items-end gap-1">
-                            <ResponsableSelector actionId={action.id} field="responsable_id_3" value={action.responsable_id_3} label="Responsable 3" />
+                          <div className="flex items-start gap-1">
+                            {renderResponsable(action, { acteur: "responsable_id_3", user: "responsable_user_id_3" }, "Responsable 3")}
                             <Button
-                              variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              variant="ghost" size="icon" className="h-8 w-8 mt-4 text-muted-foreground hover:text-destructive"
                               onClick={() => {
-                                updateAction(action.id, { responsable_id_3: null });
+                                updateAction(action.id, { responsable_id_3: null, responsable_user_id_3: null });
                                 setShowResp3(prev => { const n = new Set(prev); n.delete(action.id); return n; });
                               }}
+                              title="Retirer Responsable 3"
                             >
                               <X className="h-3 w-3" />
                             </Button>
