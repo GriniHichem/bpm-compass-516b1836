@@ -41,8 +41,8 @@ export function TaskRespCompact({ acteurId, userId, acteurs, onChange }: Props) 
         // Auto-select if exactly one user
         if (list.length === 1 && list[0].id !== userId) {
           onChange(acteurId, list[0].id);
-        } else if (list.length === 0 && userId) {
-          onChange(acteurId, null);
+        } else if (list.length === 0) {
+          if (userId) onChange(acteurId, null);
         } else if (list.length > 1 && userId && !list.find((p) => p.id === userId)) {
           onChange(acteurId, null);
         }
