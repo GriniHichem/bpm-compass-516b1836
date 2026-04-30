@@ -39,33 +39,30 @@ export function ActeurUserSelect({
       setLinkedProfiles([]);
       return;
     }
-
-    const fetchProfiles = async () => {
-      setLoading(true);
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, nom, prenom, fonction, acteur_id")
-        .eq("acteur_id", acteurValue)
-        .eq("actif", true)
-        .order("nom");
-      
-      const profiles = (data ?? []) as Profile[];
-      setLinkedProfiles(profiles);
-
-      // Auto-select if only one profile
-      if (profiles.length === 1) {
-        onUserChange(profiles[0].id);
-      } else if (profiles.length === 0) {
-        onUserChange("");
-      } else {
-        // If current userValue is not in the new profiles list, reset
-        if (userValue && !profiles.find(p => p.id === userValue)) {
+    let cancelled = false;
+    setLoading(true);
+    supabase
+      .from("profiles")
+      .select("id, nom, prenom, fonction, acteur_id")
+      .eq("acteur_id", acteurValue)
+      .eq("actif", true)
+      .order("nom")
+      .then(({ data }) => {
+        if (cancelled) return;
+        const profiles = (data ?? []) as Profile[];
+        setLinkedProfiles(profiles);
+        // Auto-select / reconcile userValue without triggering loops
+        if (profiles.length === 1 && userValue !== profiles[0].id) {
+          onUserChange(profiles[0].id);
+        } else if (profiles.length === 0) {
+          if (userValue) onUserChange("");
+        } else if (userValue && !profiles.find((p) => p.id === userValue)) {
           onUserChange("");
         }
-      }
-      setLoading(false);
-    };
-    fetchProfiles();
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [acteurValue]);
 
   const handleActeurChange = (v: string) => {
