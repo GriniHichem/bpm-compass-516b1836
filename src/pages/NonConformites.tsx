@@ -322,25 +322,19 @@ export default function NonConformites() {
                 </div>
               </DialogHeader>
 
-              {/* Workflow Progress */}
-              <div className="flex items-center gap-1 mb-4 flex-wrap">
-                {workflowSteps.map((step, i) => {
-                  const current = getStepIndex(detailNC.statut);
-                  const done = i <= current;
-                  return (
-                    <div key={step.key} className="flex items-center gap-1">
-                      <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${done ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
-                        {done ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-3 w-3 rounded-full border border-muted-foreground" />}
-                        {step.label}
-                      </div>
-                      {i < workflowSteps.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
-                    </div>
-                  );
-                })}
-              </div>
+              {/* Workflow Progress — adaptive */}
+              <ResponsiveStepper
+                className="mb-4"
+                currentKey={detailNC.statut}
+                steps={workflowSteps.map((s) => ({
+                  key: s.key,
+                  label: s.label,
+                  shortLabel: s.label,
+                }))}
+              />
 
               <Tabs defaultValue="general">
-                <TabsList className="w-full justify-start flex-wrap">
+                <TabsList className="w-full justify-start flex-wrap scroll-fade-x">
                   <TabsTrigger value="general">Général</TabsTrigger>
                   <TabsTrigger value="correction">Correction</TabsTrigger>
                   <TabsTrigger value="analyse">Analyse</TabsTrigger>
@@ -348,14 +342,14 @@ export default function NonConformites() {
                 </TabsList>
 
                 <TabsContent value="general" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div><Label className="text-muted-foreground text-xs">Gravité</Label><p><Badge className={graviteColors[detailNC.gravite] ?? ""}>{detailNC.gravite}</Badge></p></div>
                     <div><Label className="text-muted-foreground text-xs">Criticité</Label><p className="font-medium">{detailNC.criticite ? `${detailNC.criticite}/5` : "—"}</p></div>
                     <div><Label className="text-muted-foreground text-xs">Nature</Label><p className="font-medium">{detailNC.nature_nc ?? "—"}</p></div>
                     <div><Label className="text-muted-foreground text-xs">Date détection</Label><p className="font-medium">{detailNC.date_detection}</p></div>
                     <div><Label className="text-muted-foreground text-xs">Origine</Label><p className="font-medium">{detailNC.origine ?? "—"}</p></div>
                     <div><Label className="text-muted-foreground text-xs">Audit lié</Label><p className="font-medium">{getAuditRef(detailNC.audit_id)}</p></div>
-                    <div className="col-span-2"><Label className="text-muted-foreground text-xs">Processus</Label><p className="font-medium">{getProcessName(detailNC.process_id)}</p></div>
+                    <div className="sm:col-span-2"><Label className="text-muted-foreground text-xs">Processus</Label><p className="font-medium">{getProcessName(detailNC.process_id)}</p></div>
                   </div>
                   <div><Label className="text-muted-foreground text-xs">Description</Label><p className="text-sm whitespace-pre-wrap">{detailNC.description}</p></div>
                 </TabsContent>
