@@ -1,161 +1,126 @@
-# Plan d'optimisation Self-Hosting — Login & App rapides
+# Plan — UX/UI mobile & tablette pour modules sensibles
 
-## Diagnostic des causes de lenteur
+## Diagnostic actuel
 
-Après audit du code et de la base, j'ai identifié 9 causes concrètes qui ralentissent fortement le login et la navigation en self-hosting (Docker/Ubuntu) :
+L'application est techniquement responsive (Tailwind + `useIsMobile`, breakpoint 768 px) mais plusieurs zones critiques restent **inadaptées en dessous de 1024 px** :
 
-| # | Problème | Impact |
-|---|----------|--------|
-| 1 | `AuthContext` exécute 5 requêtes au login dont 1 séquentielle (`custom_role_permissions`) | +400 à 1500 ms avant affichage |
-| 2 | `AppLayout` rappelle `supabase.auth.getUser()` **2 fois** au boot (round-trip GoTrue inutile) | +200 ms |
-| 3 | Table `audit_logs` = 9 318 lignes / 10 Mo, aucun nettoyage | Triggers + INSERT lents partout |
-| 4 | 434 policies RLS — beaucoup utilisent `has_role(auth.uid(), …)` sans `(SELECT auth.uid())` | Postgres ré-évalue par ligne |
-| 5 | Index manquants sur clés chaudes : `user_roles.user_id`, `user_custom_roles.user_id`, `notifications.user_id`, `audit_logs(created_at, entity_type)` composite | Scans séquentiels |
-| 6 | Trigger `dispatch_notification_email` boucle sur 4 URLs `pg_net` de façon **synchrone** | Bloque chaque INSERT notification |
-| 7 | Client Supabase : Realtime activé par défaut + pas de PKCE explicite | WebSocket inutile + tokens fragiles |
-| 8 | `select("*")` sur `profiles` et `role_permissions` (toutes colonnes / toutes lignes) | Charge utile inutile |
-| 9 | "Invalid Refresh Token" récurrent → souvent `GOTRUE_SITE_URL` mal configuré ou horloge serveur décalée en self-host | Logout silencieux + login forcé |
+| Module / Composant | Problèmes constatés |
+|---|---|
+| `Actions.tsx` (Plans d'action) | Toolbar `flex-wrap` empile 5 contrôles → +120 px sur mobile. KPI strip bien (`grid-cols-2 sm:grid-cols-4`). Onglet Planning (Gantt) non scrollable correctement sur tablette. |
+| `ProjectActionsList.tsx` (1335 lignes) | Filter bar = `Select w-[120px]` × 3 + bouton qui débordent. Cards d'action trop denses : statut + 3 responsables + dates + badges sur la même ligne, illisible < 768 px. Selects dans formulaire édition `grid-cols-3` cassent. |
+| `NonConformites.tsx` | Workflow stepper 6 étapes en `flex-wrap` → 3 lignes sur mobile. Card NC : badges (gravité + criticité + statut + chevron) débordent sur petit écran. Dialog détail `grid-cols-2` partout, formulaires illisibles. |
+| `Audits.tsx` | Onglet "Constats" utilise `<Table>` HTML → scroll horizontal forcé sur mobile, colonnes Description / Preuve tronquées violemment. Stepper similaire. |
+| Dialogs globaux | `max-w-4xl max-h-[90vh]` mais padding interne fixe → contenu coupé sur iPhone SE / iPad portrait. Pas de slide-up natif mobile. |
+| Navbar / sidebar | OK : `Sheet` mobile déjà présent (md:hidden). À renforcer avec ergonomie tactile. |
+| Cibles tactiles | Beaucoup de boutons en `h-7` / `h-9` (28-36 px) → en dessous des 44 px Apple HIG / 48 dp Material. |
 
 ---
 
-## Stratégie
+## Stratégie globale
 
-Trois lots indépendants, jouables séparément, **chacun idempotent et sans rupture fonctionnelle**.
+Trois axes, chacun **non destructif** (aucune fonctionnalité supprimée) et **progressivement amélioré** par module.
 
-### Lot A — Frontend (gain immédiat, zéro risque)
+### Axe 1 — Système responsive transverse (1 lot, base partagée)
 
-**A1. Refonte `AuthContext.tsx`**
-- Lire la session UNE seule fois (supprimer `getSession()` redondant — utiliser `onAuthStateChange` avec `INITIAL_SESSION` au lieu de l'ignorer).
-- Paralléliser `custom_role_permissions` avec les autres requêtes (un seul `Promise.all`).
-- Rendre l'app utilisable dès que `profile + roles` sont chargés ; `permOverrides` et `customRolePerms` se chargent en arrière-plan (l'UI affiche un fallback "lecture seule" pendant ≤ 200 ms au lieu d'un écran blanc).
-- Remplacer `select("*")` par les colonnes réellement utilisées sur `profiles` et `role_permissions`.
+1. **Hook `useBreakpoint`** étendu (mobile / tablet / desktop) à côté de `useIsMobile` existant — breakpoints 640 / 1024 px.
+2. **Composant `ResponsiveDialog`** wrapper qui devient `Sheet` (slide-up bottom) sur mobile, `Dialog` classique sur desktop. Réutilisable partout sans changer l'API.
+3. **Composant `ResponsiveTable`** : table HTML standard ≥ 1024 px, **liste de cards verticales empilées** < 1024 px (chaque colonne devient une paire label/valeur).
+4. **Tokens CSS tactiles** dans `index.css` : variables `--touch-target: 44px` et utilitaires Tailwind `tap-target` pour boutons critiques (Supprimer, Valider, Clôturer).
+5. **Toolbar pattern** : sur mobile, regroupement des filtres dans un **drawer "Filtres" unique** (icône SlidersHorizontal) au lieu d'un wrap horizontal. Compteur de filtres actifs visible.
 
-**A2. Nettoyer `AppLayout.tsx`**
-- Supprimer les 2 appels `supabase.auth.getUser()` et lire `user.id` depuis `useAuth()`.
+### Axe 2 — Plans d'action (Actions.tsx + ProjectActionsList.tsx + ProjectDetail)
 
-**A3. Optimiser le client Supabase (`client.ts`)**
-- Ajouter `realtime: { params: { eventsPerSecond: 2 } }` et `global: { headers: { 'X-Client-Info': 'q-process' } }`.
-- Activer `flowType: 'pkce'` (refresh tokens plus robustes en self-host).
-- Désactiver `detectSessionInUrl` sur les pages qui n'en ont pas besoin (Login uniquement le garde).
+1. **Toolbar Actions** : sur mobile, recherche pleine largeur, filtres dans drawer, bouton "Nouveau projet" en **FAB** (Floating Action Button) bottom-right.
+2. **Cards de projet** déjà OK (`sm:grid-cols-2 lg:grid-cols-3`), juste augmenter le padding interne tactile.
+3. **Liste d'actions (le gros morceau)** :
+   - Mobile : card compacte 2 lignes (titre + statut/échéance), tap pour étendre. Responsables groupés en un seul AvatarStack tappable qui ouvre un popover.
+   - Tablet : 2 colonnes responsables max au lieu de 3.
+   - Filter bar : devient drawer "Filtres" + chips actifs visibles (statut, échéance, masquer terminées).
+4. **Édition action** : passer le formulaire en `Sheet` slide-up plein écran sur mobile. `grid-cols-1` < 640 px, `grid-cols-2` ≥ 640 px.
+5. **Gantt (Planning)** : ajouter scroll horizontal natif + indicateur "← glissez →", masquer panneau latéral < 1024 px (overlay drawer à la place).
 
-**A4. Précharger les modules critiques**
-- `<link rel="modulepreload">` dans `index.html` pour les chunks Login + AppLayout.
+### Axe 3 — Conformité (NonConformites.tsx + Audits.tsx)
 
-### Lot B — Base de données (gros gain serveur, migration unique idempotente)
+1. **Workflow stepper** : composant `ResponsiveStepper`
+   - Desktop : étapes complètes horizontales avec labels.
+   - Tablet : icônes + label court.
+   - Mobile : barre de progression `Progress` + label "Étape 3/6 — Analyse" cliquable qui ouvre la liste verticale.
+2. **Liste NC** : Card empilée verticalement sur mobile (référence + gravité en haut, description full-width, badges en bas en wrap propre, progress full-width).
+3. **Dialog détail NC** : devient `Sheet` plein écran sur mobile, onglets verticaux scrollables. `grid-cols-2` → `grid-cols-1` < 640 px.
+4. **Onglet Constats audit** : remplacer la table HTML par `ResponsiveTable` (cards sur mobile : Type + Statut en header, Description full, Preuve en footer truncate avec tooltip tap).
+5. **Formulaires de saisie** (création NC, édition audit) : tous les `grid-cols-2` deviennent `grid-cols-1 sm:grid-cols-2`. Inputs `h-10` minimum (était `h-9`). Boutons d'action principaux **sticky en bas** du Sheet sur mobile (toujours accessibles).
 
-**B1. Index manquants** (CREATE INDEX IF NOT EXISTS)
-```
-user_roles(user_id)
-user_custom_roles(user_id)
-notifications(user_id, created_at DESC)
-notifications(entity_type, entity_id)
-audit_logs(entity_type, created_at DESC)
-project_actions(project_id, ordre)
-project_tasks(action_id)
-profiles(acteur_id) WHERE actif = true
-```
+### Axe 4 — Détails ergonomiques globaux (rapides, gros impact)
 
-**B2. Optimiser les policies RLS chaudes**
-Réécrire les policies des tables les plus lues pour qu'elles invoquent `auth.uid()` une seule fois par requête au lieu d'une fois par ligne :
-```
-USING ( has_role((SELECT auth.uid()), 'admin') OR ... )
-```
-Cibles : `profiles`, `user_roles`, `notifications`, `project_actions`, `processes`, `audit_logs`.
-
-**B3. Rendre `dispatch_notification_email` non bloquant**
-- Ajouter `IF NOT pg_extension_exists('pg_net') THEN RETURN NEW; END IF;`
-- Utiliser une seule URL (lue depuis `app_settings.supabase_url`) avec fallback unique `kong:8000`.
-- Wrapper dans `EXCEPTION WHEN OTHERS THEN RETURN NEW` pour qu'un échec SMTP ne fasse jamais échouer la création de la notification.
-
-**B4. Purge automatique `audit_logs`**
-- Migration : `DELETE FROM audit_logs WHERE created_at < now() - INTERVAL '180 days'`
-- Fonction `cleanup_old_audit_logs()` planifiable (cron via `check-deadlines` ou pg_cron si dispo).
-
-**B5. VACUUM ANALYZE** sur les tables touchées (en fin de migration).
-
-### Lot C — Self-Hosting / Infra (documentation actionnable)
-
-Mise à jour de `diagnostics/SELF_HOSTING_RULES.md` avec une nouvelle section **"Performance & Login"** :
-
-1. **Variables GoTrue critiques** à valider dans `.env` du conteneur :
-   - `GOTRUE_SITE_URL` = URL exacte du frontend (sans slash final)
-   - `GOTRUE_URI_ALLOW_LIST` inclut l'URL du frontend
-   - `GOTRUE_JWT_EXP=3600` (1h, défaut OK)
-   - `GOTRUE_REFRESH_TOKEN_ROTATION_ENABLED=true`
-2. **Synchronisation horloge serveur** (`timedatectl` / `chrony`) — la cause #1 des "Invalid Refresh Token" est un décalage > 30 s.
-3. **Postgres tuning minimal** : `shared_buffers=256MB`, `effective_cache_size=1GB`, `work_mem=8MB` dans `postgresql.conf`.
-4. **Kong / Nginx** : activer gzip + cache statique sur `/assets/`.
-5. **Limites Docker** : assigner ≥ 2 CPU et 2 Go RAM au conteneur `db`, ≥ 1 CPU au conteneur `kong`.
+- **Tap targets ≥ 44 px** sur tous les boutons d'action critiques (Supprimer, Valider, Clôturer, Modifier).
+- **Safe-area iOS** : `pb-[env(safe-area-inset-bottom)]` sur sticky footers et FABs.
+- **Scroll smooth** + `overscroll-contain` sur les Sheets pour éviter le scroll de la page derrière.
+- **Tabs scrollables** : `overflow-x-auto` + masque dégradé sur les `<TabsList>` qui débordent (NC, Audits, ProjectDetail).
+- **Texte lisible** : passer les `text-[10px]` / `text-[11px]` à `text-xs` (12 px) minimum sur mobile.
 
 ---
 
-## Détails techniques (section pour développeur)
+## Détails techniques (section dev)
 
-### Réécriture `AuthContext` — modèle cible
+### Fichiers nouveaux
+```
+src/hooks/useBreakpoint.ts            # mobile / tablet / desktop
+src/components/ui/responsive-dialog.tsx   # Dialog↔Sheet adaptatif
+src/components/ui/responsive-table.tsx    # Table↔Cards adaptatif
+src/components/ui/responsive-stepper.tsx  # Stepper progressif
+src/components/ui/filter-drawer.tsx       # Drawer filtres mobile + chips actifs
+src/components/ui/fab.tsx                 # Floating Action Button
+```
 
+### Fichiers modifiés (chirurgical, sans toucher à la logique métier)
+```
+src/index.css                          # tokens --touch-target, safe-area, tap-target util
+src/pages/Actions.tsx                  # Toolbar drawer + FAB mobile
+src/pages/NonConformites.tsx           # Sheet détail + ResponsiveStepper + cards mobiles
+src/pages/Audits.tsx                   # ResponsiveTable constats + Sheet détail
+src/pages/ProjectDetail.tsx            # Sheet édition + tabs scrollables
+src/components/projects/ProjectActionsList.tsx  # FilterDrawer + cards compactes mobile
+src/components/projects/ProjectGanttChart.tsx   # Scroll horizontal + drawer panneau
+src/components/AppLayout.tsx           # safe-area-inset-bottom sur <main>
+```
+
+### Pattern type ResponsiveDialog
 ```text
-useEffect:
-  onAuthStateChange:
-    INITIAL_SESSION → setSession + setUser + lance fetchCore()
-    SIGNED_IN même userId → ignore (anti-loop focus)
-    SIGNED_OUT → reset
-    TOKEN_REFRESHED → setSession seul
-
-fetchCore (Promise.all 5 requêtes parallèles — pas de séquentiel):
-  profile (colonnes ciblées)
-  roles
-  role_permissions (colonnes ciblées)
-  user_custom_roles + JOIN custom_roles
-  custom_role_permissions WHERE custom_role_id IN (sous-requête)
-  → setLoading(false) dès profile+roles disponibles
+const isMobile = useIsMobile();
+return isMobile
+  ? <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="h-[92vh] rounded-t-2xl pb-safe">…</SheetContent>
+    </Sheet>
+  : <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">…</DialogContent>
+    </Dialog>
 ```
 
-### Migration B (extrait représentatif)
-
-```sql
-CREATE INDEX IF NOT EXISTS idx_user_roles_user ON public.user_roles(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_custom_roles_user ON public.user_custom_roles(user_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON public.notifications(user_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_created ON public.audit_logs(entity_type, created_at DESC);
-
--- Policies "(SELECT auth.uid())" pour cache plan
-DROP POLICY IF EXISTS "Users read own profile" ON public.profiles;
-CREATE POLICY "Users read own profile" ON public.profiles
-  FOR SELECT USING (id = (SELECT auth.uid()) OR has_role((SELECT auth.uid()), 'admin'));
-
--- Purge initiale
-DELETE FROM public.audit_logs WHERE created_at < now() - INTERVAL '180 days';
+### Pattern type ResponsiveTable
+```text
+≥ lg : <table> classique avec colonnes définies.
+< lg : .map() → <Card> empilée { header: colonne 0 + colonne dernière, body: colonnes intermédiaires en pairs label/valeur }.
 ```
 
-Toutes les commandes utilisent `IF NOT EXISTS` / `DROP IF EXISTS` → rejouables sans erreur (conformité aux règles self-hosting du projet).
+---
+
+## Garanties
+
+- **Aucune fonctionnalité supprimée** : seuls les conteneurs visuels changent, la logique métier (RBAC, validation, RLS, workflows) reste identique.
+- **Compatibilité desktop intacte** : à ≥ 1024 px le rendu actuel est préservé pixel-près.
+- **Aucune migration DB** : changements 100 % frontend.
+- **Aucune régression i18n** : tous les libellés FR conservés.
+- **Performance** : composants adaptatifs basés sur CSS + un seul listener `matchMedia` (pas de re-render coûteux).
 
 ---
 
-## Garanties de non-régression
+## Lots & ordre d'exécution proposé
 
-- **Aucune suppression de fonctionnalité** : seules les couches techniques sont modifiées.
-- **RLS conservées à l'identique sémantiquement** : seul l'opérateur change pour les rendre cacheables.
-- **Triggers conservés** : `dispatch_notification_email` reste actif mais devient non bloquant.
-- **Compatible Lovable Cloud + self-hosted** : la migration utilise `IF NOT EXISTS` partout.
-- Avant d'écraser une policy je conserve l'ancienne via `DROP IF EXISTS` puis recréation immédiate dans la même transaction.
+| Lot | Contenu | Impact visible |
+|---|---|---|
+| **1** | Axe 1 complet (hooks + composants partagés + tokens CSS) | Base technique, peu visible seul |
+| **2** | Axe 2 — Plans d'action (Actions + ProjectActionsList + ProjectDetail + Gantt) | Très fort sur mobile/tablette |
+| **3** | Axe 3 — Conformité (NC + Audits) | Workflow lisible mobile, formulaires utilisables |
+| **4** | Axe 4 — polissage tactile global, safe-area, tabs scrollables | Confort général, sensation premium |
 
----
-
-## Gain attendu
-
-| Métrique | Avant | Après |
-|----------|-------|-------|
-| Login (1ʳᵉ requête → app interactive) | 2 – 4 s | 400 – 800 ms |
-| Refresh page authentifiée | 1.5 – 3 s | 300 – 600 ms |
-| INSERT notification (UI bloquée) | 200 – 800 ms | < 50 ms |
-| Listing actions / processus | 400 – 1200 ms | 100 – 300 ms |
-
----
-
-## Ordre d'exécution proposé après approbation
-
-1. Lot A (frontend) — visible immédiatement, déployable seul.
-2. Lot B (migration unique) — déployée dès l'approbation, idempotente.
-3. Lot C — mise à jour de `SELF_HOSTING_RULES.md` que vous appliquez sur votre serveur (variables GoTrue + horloge + tuning Postgres).
-
-Confirmez si je lance les 3 lots, ou si vous préférez que je commence par A seul pour valider le gain avant de toucher la base.
+Confirmez si je lance les **4 lots d'un coup**, ou si vous préférez un démarrage progressif (Lot 1 + 2 d'abord, puis 3 + 4 après validation visuelle sur votre tablette/téléphone).
