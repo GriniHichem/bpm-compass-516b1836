@@ -314,34 +314,38 @@ export default function Audits() {
                 </TabsContent>
 
                 <TabsContent value="constats" className="space-y-4">
-                  {findings.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Preuve</TableHead>
-                          <TableHead>Statut</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {findings.map(f => (
-                          <TableRow key={f.id}>
-                            <TableCell>
-                              <Badge variant={f.type_constat.includes("non_conformite") ? "destructive" : "outline"}>
-                                {findingTypeLabels[f.type_constat] ?? f.type_constat}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="max-w-xs truncate">{f.description}</TableCell>
-                            <TableCell className="max-w-[120px] truncate text-xs">{f.preuve || "—"}</TableCell>
-                            <TableCell><Badge variant="outline">{f.statut}</Badge></TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <p className="text-muted-foreground text-center py-6">Aucun constat enregistré</p>
-                  )}
+                  <ResponsiveTable
+                    rows={findings}
+                    rowKey={(f) => f.id}
+                    empty={<p className="text-muted-foreground text-center py-6">Aucun constat enregistré</p>}
+                    columns={[
+                      {
+                        header: "Type",
+                        mobileHeader: true,
+                        cell: (f) => (
+                          <Badge variant={f.type_constat.includes("non_conformite") ? "destructive" : "outline"}>
+                            {findingTypeLabels[f.type_constat] ?? f.type_constat}
+                          </Badge>
+                        ),
+                      },
+                      {
+                        header: "Statut",
+                        mobileHeader: true,
+                        cell: (f) => <Badge variant="outline">{f.statut}</Badge>,
+                      },
+                      {
+                        header: "Description",
+                        mobileFullWidth: true,
+                        className: "max-w-xs truncate",
+                        cell: (f) => f.description,
+                      },
+                      {
+                        header: "Preuve",
+                        className: "max-w-[120px] truncate text-xs",
+                        cell: (f) => f.preuve || "—",
+                      },
+                    ]}
+                  />
 
                   {canEdit && (
                     <Card>
