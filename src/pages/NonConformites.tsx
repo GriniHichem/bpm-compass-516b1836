@@ -20,6 +20,7 @@ import { LinkedProjectBadge } from "@/components/projects/LinkedProjectBadge";
 import { LinkedActionDetails } from "@/components/projects/LinkedActionDetails";
 import { NcMoyensActions } from "@/components/NcMoyensActions";
 import { RootCauseAnalysis } from "@/components/RootCauseAnalysis";
+import { ResponsiveStepper } from "@/components/ui/responsive-stepper";
 
 type NC = {
   id: string; reference: string; description: string; gravite: string;
@@ -240,10 +241,11 @@ export default function NonConformites() {
         <div className="grid gap-3">
           {ncs.map((nc) => (
             <Card key={nc.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setDetailNC(nc)}>
-              <CardContent className="flex items-center justify-between py-4">
-                <div className="flex items-center gap-3">
-                  <XCircle className="h-5 w-5 text-destructive" />
-                  <div>
+              {/* Desktop / tablet ≥sm */}
+              <CardContent className="hidden sm:flex items-center justify-between py-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <XCircle className="h-5 w-5 text-destructive shrink-0" />
+                  <div className="min-w-0">
                     <p className="font-medium">{nc.reference}</p>
                     <p className="text-xs text-muted-foreground line-clamp-1">
                       {nc.nature_nc && `${nc.nature_nc} • `}{nc.description}
@@ -251,13 +253,37 @@ export default function NonConformites() {
                     <LinkedProjectBadge entityType="nonconformity" entityId={nc.id} />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <div className="hidden md:block w-24">
                     <Progress value={getProgress(nc.statut)} className="h-2" />
                   </div>
                   <Badge className={graviteColors[nc.gravite] ?? ""}>{nc.gravite}</Badge>
                   {nc.criticite && <Badge variant="outline">C{nc.criticite}</Badge>}
                   <Badge variant="outline">{statusLabels[nc.statut] ?? nc.statut}</Badge>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </CardContent>
+              {/* Mobile <sm */}
+              <CardContent className="sm:hidden py-3 space-y-2">
+                <div className="flex items-start gap-2">
+                  <XCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-medium text-sm">{nc.reference}</p>
+                      <Badge className={`${graviteColors[nc.gravite] ?? ""} text-[10px] shrink-0`}>{nc.gravite}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                      {nc.nature_nc && `${nc.nature_nc} • `}{nc.description}
+                    </p>
+                  </div>
+                </div>
+                <Progress value={getProgress(nc.statut)} className="h-1.5" />
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {nc.criticite && <Badge variant="outline" className="text-[10px]">C{nc.criticite}</Badge>}
+                    <Badge variant="outline" className="text-[10px]">{statusLabels[nc.statut] ?? nc.statut}</Badge>
+                    <LinkedProjectBadge entityType="nonconformity" entityId={nc.id} />
+                  </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
               </CardContent>
