@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { Plus, ChevronDown, ChevronRight, Trash2, CheckCircle2, Circle, Clock, MessageSquare, AlertTriangle, ShieldAlert, CalendarClock, History, UserPlus, X, ListTodo, Lock, RotateCcw, Pin, PinOff, EyeOff, Eye, Filter, ArrowUpDown, SlidersHorizontal, Ban, FileText, User } from "lucide-react";
+import { FilterDrawer } from "@/components/ui/filter-drawer";
 import { ProjectActionComments } from "@/components/projects/ProjectActionComments";
 import { ProjectActionHistory } from "@/components/projects/ProjectActionHistory";
 import { ProjectActionDependencies, type Dependency } from "@/components/projects/ProjectActionDependencies";
@@ -660,9 +661,9 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
         </div>
       )}
 
-      {/* Filter bar */}
+      {/* Filter bar — desktop ≥sm */}
       {actions.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/30 bg-muted/10 px-3 py-2">
+        <div className="hidden sm:flex flex-wrap items-center gap-2 rounded-lg border border-border/30 bg-muted/10 px-3 py-2">
           <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
 
           <Select value={filterStatut} onValueChange={setFilterStatut}>
@@ -719,6 +720,81 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
             const filteredActions = getFilteredActions();
             const hasFilters = filterStatut !== "all" || filterEcheance !== "all" || hideTerminees;
             if (!hasFilters) return null;
+            return (
+              <Badge variant="outline" className="text-[10px] h-5 ml-auto">
+                {filteredActions.length}/{actions.length} actions
+              </Badge>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Filter bar — mobile <sm */}
+      {actions.length > 0 && (
+        <div className="sm:hidden flex items-center gap-2 rounded-lg border border-border/30 bg-muted/10 px-3 py-2">
+          <FilterDrawer
+            activeCount={
+              (filterStatut !== "all" ? 1 : 0) +
+              (filterEcheance !== "all" ? 1 : 0) +
+              (sortBy !== "ordre" ? 1 : 0) +
+              (hideTerminees ? 1 : 0)
+            }
+            onReset={() => {
+              setFilterStatut("all");
+              setFilterEcheance("all");
+              setSortBy("ordre");
+              setHideTerminees(false);
+            }}
+          >
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Statut</label>
+              <Select value={filterStatut} onValueChange={setFilterStatut}>
+                <SelectTrigger className="w-full h-11"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous statuts</SelectItem>
+                  <SelectItem value="planifiee">📋 Planifiée</SelectItem>
+                  <SelectItem value="en_cours">🔄 En cours</SelectItem>
+                  <SelectItem value="terminee">✅ Terminée</SelectItem>
+                  <SelectItem value="en_retard">⚠️ En retard</SelectItem>
+                  <SelectItem value="bloquee">🔒 Bloquée</SelectItem>
+                  <SelectItem value="annulee">🚫 Annulée</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Échéance</label>
+              <Select value={filterEcheance} onValueChange={setFilterEcheance}>
+                <SelectTrigger className="w-full h-11"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes dates</SelectItem>
+                  <SelectItem value="overdue">🔴 En retard</SelectItem>
+                  <SelectItem value="this_week">📅 Cette semaine</SelectItem>
+                  <SelectItem value="this_month">📆 Ce mois</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Trier par</label>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full h-11"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ordre">Ordre manuel</SelectItem>
+                  <SelectItem value="echeance">Échéance</SelectItem>
+                  <SelectItem value="created_at">Date création</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              variant={hideTerminees ? "default" : "outline"}
+              className="w-full h-11"
+              onClick={() => setHideTerminees(!hideTerminees)}
+            >
+              {hideTerminees ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+              {hideTerminees ? "Terminées masquées" : "Masquer terminées"}
+            </Button>
+          </FilterDrawer>
+          {(() => {
+            const filteredActions = getFilteredActions();
             return (
               <Badge variant="outline" className="text-[10px] h-5 ml-auto">
                 {filteredActions.length}/{actions.length} actions

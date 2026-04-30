@@ -9,13 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { Plus, ClipboardCheck, Pencil, Eye, ChevronRight, CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminPasswordDialog } from "@/components/AdminPasswordDialog";
 import { HelpTooltip } from "@/components/HelpTooltip";
+import { ResponsiveStepper } from "@/components/ui/responsive-stepper";
+import { ResponsiveTable } from "@/components/ui/responsive-table";
 
 type Audit = {
   id: string; reference: string; type_audit: string; perimetre: string | null;
@@ -189,7 +191,7 @@ export default function Audits() {
             <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Planifier un audit</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>Référence *</Label><Input value={newAudit.reference} onChange={(e) => setNewAudit({ ...newAudit, reference: e.target.value })} placeholder="AUD-2026-001" /></div>
                   <div className="space-y-2">
                     <Label>Type</Label>
@@ -202,7 +204,7 @@ export default function Audits() {
                     </Select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>Date prévue</Label><Input type="date" value={newAudit.date_audit} onChange={(e) => setNewAudit({ ...newAudit, date_audit: e.target.value })} /></div>
                   <div className="space-y-2"><Label>Fréquence</Label><Input value={newAudit.frequence} onChange={(e) => setNewAudit({ ...newAudit, frequence: e.target.value })} placeholder="Annuelle, semestrielle..." /></div>
                 </div>
@@ -272,25 +274,15 @@ export default function Audits() {
                 </div>
               </DialogHeader>
 
-              {/* Workflow Progress */}
-              <div className="flex items-center gap-1 mb-4">
-                {workflowSteps.map((step, i) => {
-                  const current = getStepIndex(detailAudit.statut);
-                  const done = i <= current;
-                  return (
-                    <div key={step.key} className="flex items-center gap-1 flex-1">
-                      <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${done ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
-                        {done ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-3 w-3 rounded-full border border-muted-foreground" />}
-                        {step.label}
-                      </div>
-                      {i < workflowSteps.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
-                    </div>
-                  );
-                })}
-              </div>
+              {/* Workflow Progress — adaptive */}
+              <ResponsiveStepper
+                className="mb-4"
+                currentKey={detailAudit.statut}
+                steps={workflowSteps.map((s) => ({ key: s.key, label: s.label, shortLabel: s.label }))}
+              />
 
               <Tabs defaultValue="general">
-                <TabsList className="w-full justify-start">
+                <TabsList className="w-full justify-start scroll-fade-x">
                   <TabsTrigger value="general">Général</TabsTrigger>
                   <TabsTrigger value="programme">Programme</TabsTrigger>
                   <TabsTrigger value="constats">Constats</TabsTrigger>
@@ -298,7 +290,7 @@ export default function Audits() {
                 </TabsList>
 
                 <TabsContent value="general" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div><Label className="text-muted-foreground text-xs">Type</Label><p className="font-medium">{detailAudit.type_audit}</p></div>
                     <div><Label className="text-muted-foreground text-xs">Statut</Label><p><Badge className={statusColors[detailAudit.statut] ?? ""}>{statusLabels[detailAudit.statut] ?? detailAudit.statut}</Badge></p></div>
                     <div><Label className="text-muted-foreground text-xs">Date début</Label><p className="font-medium">{detailAudit.date_audit ?? "—"}</p></div>
@@ -322,40 +314,44 @@ export default function Audits() {
                 </TabsContent>
 
                 <TabsContent value="constats" className="space-y-4">
-                  {findings.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Preuve</TableHead>
-                          <TableHead>Statut</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {findings.map(f => (
-                          <TableRow key={f.id}>
-                            <TableCell>
-                              <Badge variant={f.type_constat.includes("non_conformite") ? "destructive" : "outline"}>
-                                {findingTypeLabels[f.type_constat] ?? f.type_constat}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="max-w-xs truncate">{f.description}</TableCell>
-                            <TableCell className="max-w-[120px] truncate text-xs">{f.preuve || "—"}</TableCell>
-                            <TableCell><Badge variant="outline">{f.statut}</Badge></TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <p className="text-muted-foreground text-center py-6">Aucun constat enregistré</p>
-                  )}
+                  <ResponsiveTable
+                    rows={findings}
+                    rowKey={(f) => f.id}
+                    empty={<p className="text-muted-foreground text-center py-6">Aucun constat enregistré</p>}
+                    columns={[
+                      {
+                        header: "Type",
+                        mobileHeader: true,
+                        cell: (f) => (
+                          <Badge variant={f.type_constat.includes("non_conformite") ? "destructive" : "outline"}>
+                            {findingTypeLabels[f.type_constat] ?? f.type_constat}
+                          </Badge>
+                        ),
+                      },
+                      {
+                        header: "Statut",
+                        mobileHeader: true,
+                        cell: (f) => <Badge variant="outline">{f.statut}</Badge>,
+                      },
+                      {
+                        header: "Description",
+                        mobileFullWidth: true,
+                        className: "max-w-xs truncate",
+                        cell: (f) => f.description,
+                      },
+                      {
+                        header: "Preuve",
+                        className: "max-w-[120px] truncate text-xs",
+                        cell: (f) => f.preuve || "—",
+                      },
+                    ]}
+                  />
 
                   {canEdit && (
                     <Card>
                       <CardHeader><CardTitle className="text-sm">Ajouter un constat</CardTitle></CardHeader>
                       <CardContent className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1">
                             <Label className="text-xs">Type</Label>
                             <Select value={newFinding.type_constat} onValueChange={(v) => setNewFinding({ ...newFinding, type_constat: v })}>
@@ -422,7 +418,7 @@ export default function Audits() {
                 </TabsList>
 
                 <TabsContent value="general" className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>Référence</Label><Input value={editAudit.reference} onChange={(e) => setEditAudit({ ...editAudit, reference: e.target.value })} /></div>
                     <div className="space-y-2">
                       <Label>Type</Label>

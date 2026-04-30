@@ -14,6 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, FolderKanban, Zap, ChevronDown, ChevronRight, StickyNote, User, Trash2, Pencil, CalendarRange, Search, AlertTriangle, TrendingUp, Clock, LayoutGrid, List as ListIcon } from "lucide-react";
+import { FilterDrawer } from "@/components/ui/filter-drawer";
+import { Fab } from "@/components/ui/fab";
 import { differenceInDays, parseISO } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { HelpTooltip } from "@/components/HelpTooltip";
@@ -313,8 +315,8 @@ export default function Actions() {
 
         {/* Projects tab */}
         <TabsContent value="projects" className="space-y-4">
-          {/* Toolbar */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Toolbar — desktop ≥ sm */}
+          <div className="hidden sm:flex flex-wrap items-center gap-2">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
@@ -357,6 +359,65 @@ export default function Actions() {
                 <Plus className="h-4 w-4" /> Nouveau projet
               </Button>
             )}
+          </div>
+
+          {/* Toolbar — mobile < sm */}
+          <div className="sm:hidden space-y-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher un projet..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-10 text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <FilterDrawer
+                activeCount={(statusFilter !== "all" ? 1 : 0) + (sortBy !== "recent" ? 1 : 0)}
+                onReset={() => { setStatusFilter("all"); setSortBy("recent"); }}
+              >
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Statut</label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full h-11"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tous statuts</SelectItem>
+                      <SelectItem value="brouillon">Brouillon</SelectItem>
+                      <SelectItem value="en_cours">En cours</SelectItem>
+                      <SelectItem value="termine">Terminé</SelectItem>
+                      <SelectItem value="archive">Archivé</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Trier par</label>
+                  <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                    <SelectTrigger className="w-full h-11"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="recent">Plus récents</SelectItem>
+                      <SelectItem value="deadline">Échéance</SelectItem>
+                      <SelectItem value="progress">Avancement</SelectItem>
+                      <SelectItem value="alpha">Alphabétique</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Affichage</label>
+                  <div className="flex gap-2">
+                    <Button variant={viewMode === "grid" ? "default" : "outline"} className="flex-1 h-11" onClick={() => setViewMode("grid")}>
+                      <LayoutGrid className="h-4 w-4 mr-2" /> Grille
+                    </Button>
+                    <Button variant={viewMode === "list" ? "default" : "outline"} className="flex-1 h-11" onClick={() => setViewMode("list")}>
+                      <ListIcon className="h-4 w-4 mr-2" /> Liste
+                    </Button>
+                  </div>
+                </div>
+              </FilterDrawer>
+              <span className="text-xs text-muted-foreground ml-auto">
+                {filteredProjects.length} résultat{filteredProjects.length > 1 ? "s" : ""}
+              </span>
+            </div>
           </div>
 
           {loadingProjects ? (
@@ -522,6 +583,18 @@ export default function Actions() {
       </Tabs>
 
       <ProjectForm open={projectFormOpen} onOpenChange={setProjectFormOpen} onSaved={fetchProjects} />
+
+      {/* Mobile FAB — Nouveau projet */}
+      {canEdit && (
+        <div className="sm:hidden">
+          <Fab
+            icon={<Plus className="h-6 w-6" />}
+            label="Nouveau"
+            onClick={() => setProjectFormOpen(true)}
+            aria-label="Nouveau projet"
+          />
+        </div>
+      )}
     </div>
   );
 }
