@@ -179,26 +179,26 @@ export function AppNavbar() {
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-border/30 bg-card/80 backdrop-blur-xl" style={{ boxShadow: "var(--shadow-sm)" }}>
-        <div className="flex h-14 items-center justify-between px-4 lg:px-6 max-w-[1600px] mx-auto">
+        <div className="flex h-14 items-center justify-between gap-2 px-3 sm:px-4 lg:px-6 max-w-[1600px] mx-auto">
           {/* Left: Logo + Nav */}
-          <div className="flex items-center gap-5">
-            <Link to="/" className="flex items-center gap-2.5 shrink-0 group">
+          <div className="flex items-center gap-3 lg:gap-5 min-w-0">
+            <Link to="/" className="flex items-center gap-2 shrink-0 group">
               <img src={logoSrc} alt={settings.company_name} className="h-7 object-contain transition-transform duration-200 group-hover:scale-105" />
               {settings.brand_logo_url && (
-                <img src={settings.brand_logo_url} alt="Logo marque" className="h-6 object-contain" />
+                <img src={settings.brand_logo_url} alt="Logo marque" className="h-6 object-contain hidden sm:block" />
               )}
-              <span className="text-sm font-bold tracking-tight text-foreground hidden sm:inline">
+              <span className="text-sm font-bold tracking-tight text-foreground hidden lg:inline truncate max-w-[160px]">
                 {settings.app_name}
               </span>
-              <span className="text-[9px] font-bold text-primary-foreground bg-primary px-1.5 py-0.5 rounded-md leading-none hidden sm:inline">
+              <span className="text-[9px] font-bold text-primary-foreground bg-primary px-1.5 py-0.5 rounded-md leading-none hidden lg:inline">
                 SMQ
               </span>
             </Link>
 
-            <div className="h-6 w-px bg-border/40 hidden md:block" />
+            <div className="h-6 w-px bg-border/40 hidden lg:block" />
 
-            {/* Desktop nav links */}
-            <nav className="hidden md:flex items-center gap-0.5">
+            {/* Desktop nav links (lg+) */}
+            <nav className="hidden lg:flex items-center gap-0.5">
               <Link
                 to="/"
                 className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive("/") ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"}`}
