@@ -16,6 +16,8 @@ import { Plus, ClipboardCheck, Pencil, Eye, ChevronRight, CheckCircle2, AlertTri
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminPasswordDialog } from "@/components/AdminPasswordDialog";
 import { HelpTooltip } from "@/components/HelpTooltip";
+import { ResponsiveStepper } from "@/components/ui/responsive-stepper";
+import { ResponsiveTable } from "@/components/ui/responsive-table";
 
 type Audit = {
   id: string; reference: string; type_audit: string; perimetre: string | null;
@@ -272,25 +274,15 @@ export default function Audits() {
                 </div>
               </DialogHeader>
 
-              {/* Workflow Progress */}
-              <div className="flex items-center gap-1 mb-4">
-                {workflowSteps.map((step, i) => {
-                  const current = getStepIndex(detailAudit.statut);
-                  const done = i <= current;
-                  return (
-                    <div key={step.key} className="flex items-center gap-1 flex-1">
-                      <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${done ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
-                        {done ? <CheckCircle2 className="h-3 w-3" /> : <div className="h-3 w-3 rounded-full border border-muted-foreground" />}
-                        {step.label}
-                      </div>
-                      {i < workflowSteps.length - 1 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
-                    </div>
-                  );
-                })}
-              </div>
+              {/* Workflow Progress — adaptive */}
+              <ResponsiveStepper
+                className="mb-4"
+                currentKey={detailAudit.statut}
+                steps={workflowSteps.map((s) => ({ key: s.key, label: s.label, shortLabel: s.label }))}
+              />
 
               <Tabs defaultValue="general">
-                <TabsList className="w-full justify-start">
+                <TabsList className="w-full justify-start scroll-fade-x">
                   <TabsTrigger value="general">Général</TabsTrigger>
                   <TabsTrigger value="programme">Programme</TabsTrigger>
                   <TabsTrigger value="constats">Constats</TabsTrigger>
