@@ -595,9 +595,22 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
     action: ProjectAction,
     fields: RespFields,
     label: string,
+    onRemove?: () => void,
   ) => (
-    <div className="space-y-1 w-56">
-      <label className="text-[10px] font-medium text-muted-foreground">{label}</label>
+    <div className="relative rounded-lg border border-border/50 bg-muted/20 p-2.5 pt-2 space-y-1.5 hover:border-border transition-colors">
+      <div className="flex items-center justify-between gap-1">
+        <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</label>
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="h-4 w-4 inline-flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            title={`Retirer ${label}`}
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
+      </div>
       <ActeurUserSelect
         acteurValue={(action[fields.acteur] as string | null) ?? ""}
         userValue={(action[fields.user] as string | null) ?? ""}
@@ -912,54 +925,48 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                         )}
                       </div>
 
-                      {/* Responsables row */}
-                      <div className="flex flex-wrap items-end gap-2">
+                      {/* Responsables — grid alignée pour éviter que la croissance d'une colonne décale les autres */}
+                      <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 items-start">
                         {renderResponsable(action, { acteur: "responsable_id", user: "responsable_user_id" }, "Responsable 1")}
 
                         {hasResp2 ? (
-                          <div className="flex items-start gap-1">
-                            {renderResponsable(action, { acteur: "responsable_id_2", user: "responsable_user_id_2" }, "Responsable 2")}
-                            <Button
-                              variant="ghost" size="icon" className="h-8 w-8 mt-4 text-muted-foreground hover:text-destructive"
-                              onClick={() => {
-                                updateAction(action.id, { responsable_id_2: null, responsable_user_id_2: null });
-                                setShowResp2(prev => { const n = new Set(prev); n.delete(action.id); return n; });
-                              }}
-                              title="Retirer Responsable 2"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
+                          renderResponsable(
+                            action,
+                            { acteur: "responsable_id_2", user: "responsable_user_id_2" },
+                            "Responsable 2",
+                            () => {
+                              updateAction(action.id, { responsable_id_2: null, responsable_user_id_2: null });
+                              setShowResp2(prev => { const n = new Set(prev); n.delete(action.id); return n; });
+                            },
+                          )
                         ) : (
-                          <Button
-                            variant="ghost" size="sm" className="h-8 text-xs gap-1 text-muted-foreground"
+                          <button
+                            type="button"
                             onClick={() => setShowResp2(prev => new Set([...prev, action.id]))}
+                            className="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 bg-transparent px-3 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors min-h-[64px]"
                           >
-                            <UserPlus className="h-3 w-3" /> +Resp. 2
-                          </Button>
+                            <UserPlus className="h-3.5 w-3.5" /> Ajouter Responsable 2
+                          </button>
                         )}
 
                         {hasResp2 && (hasResp3 ? (
-                          <div className="flex items-start gap-1">
-                            {renderResponsable(action, { acteur: "responsable_id_3", user: "responsable_user_id_3" }, "Responsable 3")}
-                            <Button
-                              variant="ghost" size="icon" className="h-8 w-8 mt-4 text-muted-foreground hover:text-destructive"
-                              onClick={() => {
-                                updateAction(action.id, { responsable_id_3: null, responsable_user_id_3: null });
-                                setShowResp3(prev => { const n = new Set(prev); n.delete(action.id); return n; });
-                              }}
-                              title="Retirer Responsable 3"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
+                          renderResponsable(
+                            action,
+                            { acteur: "responsable_id_3", user: "responsable_user_id_3" },
+                            "Responsable 3",
+                            () => {
+                              updateAction(action.id, { responsable_id_3: null, responsable_user_id_3: null });
+                              setShowResp3(prev => { const n = new Set(prev); n.delete(action.id); return n; });
+                            },
+                          )
                         ) : (
-                          <Button
-                            variant="ghost" size="sm" className="h-8 text-xs gap-1 text-muted-foreground"
+                          <button
+                            type="button"
                             onClick={() => setShowResp3(prev => new Set([...prev, action.id]))}
+                            className="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 bg-transparent px-3 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors min-h-[64px]"
                           >
-                            <UserPlus className="h-3 w-3" /> +Resp. 3
-                          </Button>
+                            <UserPlus className="h-3.5 w-3.5" /> Ajouter Responsable 3
+                          </button>
                         ))}
                       </div>
 
