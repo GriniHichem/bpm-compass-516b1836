@@ -276,7 +276,7 @@ export function AppNavbar() {
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             <div className="lg:hidden">
               <GlobalSearch />
             </div>
@@ -286,14 +286,14 @@ export function AppNavbar() {
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground" onClick={() => setInfoOpen(true)}>
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-muted-foreground hover:text-foreground hidden sm:inline-flex" onClick={() => setInfoOpen(true)}>
                   <Info className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>À propos</TooltipContent>
             </Tooltip>
 
-            <div className="flex items-center gap-0.5 border border-border/30 rounded-xl p-0.5 bg-muted/20">
+            <div className="hidden sm:flex items-center gap-0.5 border border-border/30 rounded-xl p-0.5 bg-muted/20">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant={accessible ? "default" : "ghost"} size="icon" className="h-7 w-7 rounded-lg" onClick={toggleAccessible}>
@@ -305,25 +305,25 @@ export function AppNavbar() {
               <DarkModeToggle />
             </div>
 
-            <div className="h-6 w-px bg-border/30 mx-1 hidden sm:block" />
+            <div className="h-6 w-px bg-border/30 mx-1 hidden lg:block" />
 
             {/* Profile dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-muted/40 transition-all duration-200">
+                <button className="flex items-center gap-2 rounded-xl px-1.5 sm:px-2 py-1.5 hover:bg-muted/40 transition-all duration-200">
                   <Avatar className="h-8 w-8 rounded-xl">
                     <AvatarImage src={profile?.photo_url || undefined} alt={`${profile?.prenom} ${profile?.nom}`} className="object-cover" />
                     <AvatarFallback className="rounded-xl bg-gradient-to-br from-primary to-accent text-primary-foreground text-[11px] font-bold">
                       {profile?.prenom?.[0] ?? ""}{profile?.nom?.[0] ?? ""}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="text-right hidden lg:block">
+                  <div className="text-right hidden xl:block">
                     <p className="text-xs font-semibold text-foreground leading-tight">{profile?.prenom} {profile?.nom}</p>
                     <p className="text-[10px] text-muted-foreground capitalize leading-tight">
                       {roles.map(r => ROLE_LABELS[r as AppRole] || r).join(", ").replace(/_/g, " ")}
                     </p>
                   </div>
-                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground hidden lg:block" />
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground hidden xl:block" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52 rounded-xl" style={{ boxShadow: "var(--shadow-lg)" }}>
@@ -348,14 +348,14 @@ export function AppNavbar() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Mobile hamburger */}
+            {/* Mobile/Tablet hamburger (below lg) */}
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl md:hidden text-muted-foreground">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl lg:hidden text-muted-foreground">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 p-0 overflow-y-auto">
+              <SheetContent side="left" className="w-[85vw] max-w-sm p-0 overflow-y-auto">
                 <div className="p-4 border-b border-border/30">
                   <p className="font-bold text-foreground">{settings.app_name}</p>
                   <p className="text-xs text-muted-foreground">SMQ</p>
