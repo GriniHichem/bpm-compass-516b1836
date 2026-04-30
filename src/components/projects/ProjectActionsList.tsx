@@ -596,7 +596,9 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   );
 
   // Responsable 1 = couplé à responsable_user_id pour cibler la personne réelle (notifications)
-  const ResponsableR1Selector = ({ action, disabled }: { action: ProjectAction; disabled?: boolean }) => (
+  // NOTE: rendu inline (pas un sous-composant local) pour éviter un remount à chaque render
+  // qui re-déclencherait le useEffect interne et provoquerait des boucles de fetch.
+  const renderResponsableR1 = (action: ProjectAction, disabled?: boolean) => (
     <div className="space-y-1 w-56">
       <label className="text-[10px] font-medium text-muted-foreground">Responsable 1</label>
       <ActeurUserSelect
@@ -895,7 +897,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
 
                       {/* Responsables row */}
                       <div className="flex flex-wrap items-end gap-2">
-                        <ResponsableR1Selector action={action} />
+                        {renderResponsableR1(action)}
 
                         {hasResp2 ? (
                           <div className="flex items-end gap-1">
