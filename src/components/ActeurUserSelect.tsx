@@ -96,19 +96,19 @@ export function ActeurUserSelect({
       {/* Step 2: If multiple users share this function, select the specific user */}
       {showUserSelect && (
         <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <Users className="h-3 w-3" />
-            <span>{linkedProfiles.length} utilisateurs partagent cette fonction</span>
+            <span>{linkedProfiles.length} utilisateurs — choisir la personne</span>
           </div>
           <Select value={userValue || "none"} onValueChange={(v) => onUserChange(v === "none" ? "" : v)}>
             <SelectTrigger className="border-primary/30 bg-primary/5">
-              <SelectValue placeholder="Sélectionner l'utilisateur..." />
+              <SelectValue placeholder="Sélectionner l'utilisateur…" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">Sélectionner l'utilisateur...</SelectItem>
+              <SelectItem value="none">Sélectionner l'utilisateur…</SelectItem>
               {linkedProfiles.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
-                  {p.prenom} {p.nom} {p.fonction ? `— ${p.fonction}` : ""}
+                  {p.prenom} {p.nom}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -116,15 +116,16 @@ export function ActeurUserSelect({
         </div>
       )}
 
-      {/* Show auto-selected single user info */}
+      {/* Auto-selected single user — clean badge with user icon */}
       {singleProfile && (
-        <Badge variant="secondary" className="text-xs font-normal">
-          👤 {singleProfile.prenom} {singleProfile.nom}
-        </Badge>
+        <div className="inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-2 py-1 text-xs">
+          <UserIcon className="h-3 w-3 text-primary" />
+          <span className="font-medium text-foreground">{singleProfile.prenom} {singleProfile.nom}</span>
+        </div>
       )}
 
       {acteurValue && !loading && linkedProfiles.length === 0 && (
-        <p className="text-xs text-amber-600">⚠ Aucun utilisateur lié à cette fonction</p>
+        <p className="text-[11px] text-amber-600 dark:text-amber-500">⚠ Aucun utilisateur lié à cette fonction — la notification ne sera pas envoyée à une personne précise.</p>
       )}
     </div>
   );
