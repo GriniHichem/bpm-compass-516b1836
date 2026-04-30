@@ -583,6 +583,18 @@ export default function Actions() {
       </Tabs>
 
       <ProjectForm open={projectFormOpen} onOpenChange={setProjectFormOpen} onSaved={fetchProjects} />
+
+      {/* Mobile FAB — Nouveau projet */}
+      {canEdit && (
+        <div className="sm:hidden">
+          <Fab
+            icon={<Plus className="h-6 w-6" />}
+            label="Nouveau"
+            onClick={() => setProjectFormOpen(true)}
+            aria-label="Nouveau projet"
+          />
+        </div>
+      )}
     </div>
   );
 }
