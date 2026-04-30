@@ -169,3 +169,163 @@ Avant chaque nouvelle fonctionnalité, vérifier :
 \---
 
 Ce prompt est \*\*générique et réutilisable\*\* pour tout projet de gestion (ISO 9001, ERP, CRM, etc.) développé sur Lovable avec objectif de déploiement self-hosted.  
+
+---
+
+## **15\. Performance & Login (CRITIQUE pour Self-Hosted)**
+
+Section ajoutée suite à l'audit de performance d'avril 2026.
+
+### **15.1 Variables GoTrue (auth) à vérifier impérativement**
+
+Dans le `.env` du conteneur **gotrue / supabase-auth** :
+
+```
+GOTRUE_SITE_URL=https://votre-frontend.example.com         # SANS slash final
+GOTRUE_URI_ALLOW_LIST=https://votre-frontend.example.com   # virgule pour plusieurs
+GOTRUE_JWT_EXP=3600                                         # 1h, défaut
+GOTRUE_REFRESH_TOKEN_ROTATION_ENABLED=true
+GOTRUE_SECURITY_REFRESH_TOKEN_REUSE_INTERVAL=10            # secondes
+GOTRUE_DISABLE_SIGNUP=true                                  # sécurité (login admin uniquement)
+```
+
+**Symptôme typique d'une mauvaise config** : erreur `Invalid Refresh Token: Refresh Token Not Found` au reload, ou login qui se déconnecte au bout de quelques minutes.
+
+### **15.2 Synchronisation horloge serveur (cause #1 des bugs auth)**
+
+```bash
+sudo timedatectl set-ntp true
+sudo systemctl enable --now systemd-timesyncd
+timedatectl status   # vérifier "System clock synchronized: yes"
+```
+
+Un décalage > 30 secondes entre le serveur et le navigateur invalide silencieusement TOUS les JWT.
+
+### **15.3 Tuning Postgres minimal**
+
+Dans `postgresql.conf` du conteneur DB (ou variables Docker `POSTGRES_*`) :
+
+```
+shared_buffers = 256MB
+effective_cache_size = 1GB
+work_mem = 8MB
+maintenance_work_mem = 64MB
+random_page_cost = 1.1            # SSD
+max_connections = 100
+```
+
+Redémarrer le conteneur après modification. Pour vérifier :
+```sql
+SHOW shared_buffers; SHOW work_mem;
+```
+
+### **15.4 Index obligatoires sur tables chaudes**
+
+La migration d'optimisation crée automatiquement les index ci-dessous. Si vous repartez d'une base fraîche, vérifiez leur présence :
+
+```sql
+SELECT indexname FROM pg_indexes WHERE schemaname='public' AND indexname IN (
+  'idx_user_roles_user',
+  'idx_user_custom_roles_user',
+  'idx_notifications_user_created',
+  'idx_notifications_entity',
+  'idx_audit_logs_entity_created',
+  'idx_project_actions_project_ordre',
+  'idx_project_tasks_action',
+  'idx_profiles_acteur_actif'
+);
+```
+
+Tous doivent être listés. Sinon, rejouer la dernière migration de performance.
+
+### **15.5 Politiques RLS — pattern obligatoire**
+
+Toutes les nouvelles policies DOIVENT envelopper `auth.uid()` dans un `(SELECT …)` pour permettre à Postgres de cacher la valeur sur toute la requête :
+
+```sql
+-- ✅ BON — auth.uid() évalué une fois par requête
+CREATE POLICY my_policy ON public.ma_table FOR SELECT
+  USING (user_id = (SELECT auth.uid()) OR has_role((SELECT auth.uid()), 'admin'::app_role));
+
+-- ❌ MAUVAIS — auth.uid() évalué à chaque ligne
+CREATE POLICY my_policy ON public.ma_table FOR SELECT
+  USING (user_id = auth.uid() OR has_role(auth.uid(), 'admin'::app_role));
+```
+
+Sur des tables de plusieurs milliers de lignes, le gain est 5x à 50x.
+
+### **15.6 Purge périodique du journal d'activité**
+
+La table `audit_logs` peut atteindre des millions de lignes. Planifier la fonction de purge (180 jours par défaut) :
+
+**Option A — pg_cron (si extension disponible)** :
+```sql
+SELECT cron.schedule('cleanup-audit-logs', '0 3 * * 0',
+  $$SELECT public.cleanup_old_audit_logs(180);$$);
+```
+
+**Option B — cron système hebdomadaire** :
+```bash
+0 3 * * 0 docker exec supabase-db psql -U postgres -c "SELECT public.cleanup_old_audit_logs(180);"
+```
+
+### **15.7 Triggers d'envoi email — non bloquants**
+
+Le trigger `dispatch_notification_email` est désormais **fire-and-forget** :
+- Si `pg_net` n'est pas installé, le trigger retourne sans erreur (notif push reste créée).
+- Si SMTP échoue, l'erreur est avalée — aucune notification n'est jamais perdue dans la base.
+- Une seule URL est utilisée (lue depuis `app_settings.supabase_url`, fallback `http://kong:8000`).
+
+**À configurer en self-host** : insérer/mettre à jour
+```sql
+INSERT INTO public.app_settings(key, value)
+VALUES('supabase_url', 'http://kong:8000')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+```
+
+### **15.8 Limites Docker recommandées**
+
+Dans `docker-compose.yml` self-hosted :
+
+```yaml
+services:
+  db:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+  kong:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+  auth:
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+```
+
+### **15.9 Frontend — préférer `useAuth()` aux appels directs**
+
+NE JAMAIS appeler `supabase.auth.getUser()` ou `getSession()` dans des composants applicatifs :
+- Source de vérité unique : `const { user, session, profile, loading } = useAuth();`
+- Évite les round-trips réseau inutiles vers GoTrue à chaque montage de composant.
+
+### **15.10 Checklist post-déploiement**
+
+```
+[ ] timedatectl status confirme la synchro NTP
+[ ] GOTRUE_SITE_URL pointe vers le frontend (sans slash final)
+[ ] GOTRUE_URI_ALLOW_LIST inclut le frontend
+[ ] app_settings.supabase_url = http://kong:8000 (ou URL externe)
+[ ] Index de performance présents (cf 15.4)
+[ ] Purge audit_logs planifiée
+[ ] Limites Docker appliquées (cf 15.8)
+[ ] Test login < 1 seconde après saisie
+[ ] Test refresh page authentifiée < 1 seconde
+```
+
