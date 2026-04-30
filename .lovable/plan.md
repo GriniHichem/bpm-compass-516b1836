@@ -1,53 +1,161 @@
-## Objectif
+# Plan d'optimisation Self-Hosting — Login & App rapides
 
-Appliquer la logique « Acteur (fonction) → Utilisateur réel » (composant `ActeurUserSelect`) à **tout le module Plan d'action** (projets + actions legacy), exactement comme dans les modules Risques / Indicateurs / NC. Quand une fonction est portée par **un seul utilisateur** → sélection automatique. Sinon → menu pour préciser **la personne réelle**, ce qui permet à la notification (push + email SMTP) de cibler le bon individu.
+## Diagnostic des causes de lenteur
 
-## État actuel
+Après audit du code et de la base, j'ai identifié 9 causes concrètes qui ralentissent fortement le login et la navigation en self-hosting (Docker/Ubuntu) :
 
-- La table `public.actions` (legacy) **a déjà** la colonne `responsable_user_id` (migration 20260317122959).
-- Les tables `project_actions` et `project_tasks` ont aussi déjà `responsable_user_id` et sont déjà couvertes par la trigger `notify_responsibility_change`.
-- La trigger envoie déjà la notification au bon `user_id` quand il est précisé, sinon retombe sur le 1er profil lié à la fonction.
-- Côté UI cependant, le module Actions **n'utilise pas** `ActeurUserSelect` : il utilise un `Select` simple basé uniquement sur `acteurs`, donc l'utilisateur réel n'est jamais transmis et la notification cible un profil arbitraire.
+| # | Problème | Impact |
+|---|----------|--------|
+| 1 | `AuthContext` exécute 5 requêtes au login dont 1 séquentielle (`custom_role_permissions`) | +400 à 1500 ms avant affichage |
+| 2 | `AppLayout` rappelle `supabase.auth.getUser()` **2 fois** au boot (round-trip GoTrue inutile) | +200 ms |
+| 3 | Table `audit_logs` = 9 318 lignes / 10 Mo, aucun nettoyage | Triggers + INSERT lents partout |
+| 4 | 434 policies RLS — beaucoup utilisent `has_role(auth.uid(), …)` sans `(SELECT auth.uid())` | Postgres ré-évalue par ligne |
+| 5 | Index manquants sur clés chaudes : `user_roles.user_id`, `user_custom_roles.user_id`, `notifications.user_id`, `audit_logs(created_at, entity_type)` composite | Scans séquentiels |
+| 6 | Trigger `dispatch_notification_email` boucle sur 4 URLs `pg_net` de façon **synchrone** | Bloque chaque INSERT notification |
+| 7 | Client Supabase : Realtime activé par défaut + pas de PKCE explicite | WebSocket inutile + tokens fragiles |
+| 8 | `select("*")` sur `profiles` et `role_permissions` (toutes colonnes / toutes lignes) | Charge utile inutile |
+| 9 | "Invalid Refresh Token" récurrent → souvent `GOTRUE_SITE_URL` mal configuré ou horloge serveur décalée en self-host | Logout silencieux + login forcé |
 
-## Changements à faire
+---
 
-### 1. Page `src/pages/Actions.tsx` — création d'action legacy
+## Stratégie
 
-- Ajouter `responsable_user_id` dans `LegacyAction` et dans le state `newLegacyAction`.
-- Remplacer le `Select` du formulaire (ligne ~417) par `<ActeurUserSelect>` avec gestion des deux valeurs (acteurId + userId).
-- À l'INSERT (ligne ~180), persister `responsable_user_id`.
-- Affichage de la ligne action (ligne ~457) : si `responsable_user_id`, afficher « Fonction — Prénom Nom » ; sinon afficher seulement la fonction (comportement actuel).
+Trois lots indépendants, jouables séparément, **chacun idempotent et sans rupture fonctionnelle**.
 
-### 2. `src/components/projects/ProjectActionsList.tsx` — actions de projet
+### Lot A — Frontend (gain immédiat, zéro risque)
 
-- Modifier le composant interne `ResponsableSelector` (ligne ~575) pour utiliser `ActeurUserSelect` au lieu d'un `Select` simple.
-  - Pour `responsable_id` (R1) : couplé à `responsable_user_id` (déjà en BDD).
-  - Pour `responsable_id_2` et `responsable_id_3` : pas de champ user dédié en BDD → garder le sélecteur simple actuel (R2/R3 sont historiquement des co-responsables au niveau fonction, ne déclenchent pas de notification individuelle). À confirmer ; sinon ajouter colonnes `responsable_user_id_2/3` via migration.
-- `updateAction` : quand on change `responsable_id`, réinitialiser `responsable_user_id = null` ; quand on change l'utilisateur, mettre à jour `responsable_user_id` seul.
-- Sous-tâches (`project_tasks`, ligne ~1029) : remplacer aussi le `Select` simple par `ActeurUserSelect` compact (taille réduite). La table `project_tasks` a déjà `responsable_user_id`.
+**A1. Refonte `AuthContext.tsx`**
+- Lire la session UNE seule fois (supprimer `getSession()` redondant — utiliser `onAuthStateChange` avec `INITIAL_SESSION` au lieu de l'ignorer).
+- Paralléliser `custom_role_permissions` avec les autres requêtes (un seul `Promise.all`).
+- Rendre l'app utilisable dès que `profile + roles` sont chargés ; `permOverrides` et `customRolePerms` se chargent en arrière-plan (l'UI affiche un fallback "lecture seule" pendant ≤ 200 ms au lieu d'un écran blanc).
+- Remplacer `select("*")` par les colonnes réellement utilisées sur `profiles` et `role_permissions`.
 
-### 3. Affichages
+**A2. Nettoyer `AppLayout.tsx`**
+- Supprimer les 2 appels `supabase.auth.getUser()` et lire `user.id` depuis `useAuth()`.
 
-- Quand `responsable_user_id` est renseigné, afficher « Fonction — Prénom Nom » (lookup léger via `profiles`) au lieu de la seule fonction. Ajouter un petit hook utilitaire `useProfilesById` (cache en mémoire) ou faire un fetch ciblé, pour éviter un N+1.
+**A3. Optimiser le client Supabase (`client.ts`)**
+- Ajouter `realtime: { params: { eventsPerSecond: 2 } }` et `global: { headers: { 'X-Client-Info': 'q-process' } }`.
+- Activer `flowType: 'pkce'` (refresh tokens plus robustes en self-host).
+- Désactiver `detectSessionInUrl` sur les pages qui n'en ont pas besoin (Login uniquement le garde).
 
-### 4. Notifications — aucune migration nécessaire
+**A4. Précharger les modules critiques**
+- `<link rel="modulepreload">` dans `index.html` pour les chunks Login + AppLayout.
 
-- La trigger `notify_responsibility_change` lit déjà `responsable_user_id` en priorité, puis tombe sur le premier profil lié à l'acteur. Donc dès que l'UI remplit ce champ, la notification (push + email via `dispatch_notification_email` → `send-notification-email`) cible automatiquement la bonne personne.
-- Aucune modification de fonction edge ou de SQL n'est nécessaire.
-- Vérifier seulement que la clause `resolve_notification_channel(_user_id, ...)` reçoit bien le user_id ciblé (déjà le cas).
+### Lot B — Base de données (gros gain serveur, migration unique idempotente)
 
-## Récap technique
+**B1. Index manquants** (CREATE INDEX IF NOT EXISTS)
+```
+user_roles(user_id)
+user_custom_roles(user_id)
+notifications(user_id, created_at DESC)
+notifications(entity_type, entity_id)
+audit_logs(entity_type, created_at DESC)
+project_actions(project_id, ordre)
+project_tasks(action_id)
+profiles(acteur_id) WHERE actif = true
+```
 
-| Fichier | Changement |
-|---|---|
-| `src/pages/Actions.tsx` | Form création + état + insert + affichage utilisent `ActeurUserSelect` et `responsable_user_id` |
-| `src/components/projects/ProjectActionsList.tsx` | `ResponsableSelector` (R1) → `ActeurUserSelect` ; sélecteur de tâche → `ActeurUserSelect` |
-| (option) `src/hooks/useProfilesById.ts` | Petit hook de lookup pour afficher « Fonction — Prénom Nom » |
-| BDD | Aucune migration |
-| Edge functions | Aucune modification |
+**B2. Optimiser les policies RLS chaudes**
+Réécrire les policies des tables les plus lues pour qu'elles invoquent `auth.uid()` une seule fois par requête au lieu d'une fois par ligne :
+```
+USING ( has_role((SELECT auth.uid()), 'admin') OR ... )
+```
+Cibles : `profiles`, `user_roles`, `notifications`, `project_actions`, `processes`, `audit_logs`.
 
-## Résultat attendu
+**B3. Rendre `dispatch_notification_email` non bloquant**
+- Ajouter `IF NOT pg_extension_exists('pg_net') THEN RETURN NEW; END IF;`
+- Utiliser une seule URL (lue depuis `app_settings.supabase_url`) avec fallback unique `kong:8000`.
+- Wrapper dans `EXCEPTION WHEN OTHERS THEN RETURN NEW` pour qu'un échec SMTP ne fasse jamais échouer la création de la notification.
 
-- À la création/édition d'une action ou d'une tâche, l'utilisateur choisit la fonction. Si **1 seule** personne est rattachée → badge auto avec son nom. Si **plusieurs** → liste pour choisir précisément.
-- Les notifications (cloche + email SMTP) arrivent à la **personne réelle** sélectionnée, pas à un profil arbitraire de la fonction.
-- Cohérence visuelle et comportementale parfaite avec Risques, Indicateurs, NC, Enjeux.
+**B4. Purge automatique `audit_logs`**
+- Migration : `DELETE FROM audit_logs WHERE created_at < now() - INTERVAL '180 days'`
+- Fonction `cleanup_old_audit_logs()` planifiable (cron via `check-deadlines` ou pg_cron si dispo).
+
+**B5. VACUUM ANALYZE** sur les tables touchées (en fin de migration).
+
+### Lot C — Self-Hosting / Infra (documentation actionnable)
+
+Mise à jour de `diagnostics/SELF_HOSTING_RULES.md` avec une nouvelle section **"Performance & Login"** :
+
+1. **Variables GoTrue critiques** à valider dans `.env` du conteneur :
+   - `GOTRUE_SITE_URL` = URL exacte du frontend (sans slash final)
+   - `GOTRUE_URI_ALLOW_LIST` inclut l'URL du frontend
+   - `GOTRUE_JWT_EXP=3600` (1h, défaut OK)
+   - `GOTRUE_REFRESH_TOKEN_ROTATION_ENABLED=true`
+2. **Synchronisation horloge serveur** (`timedatectl` / `chrony`) — la cause #1 des "Invalid Refresh Token" est un décalage > 30 s.
+3. **Postgres tuning minimal** : `shared_buffers=256MB`, `effective_cache_size=1GB`, `work_mem=8MB` dans `postgresql.conf`.
+4. **Kong / Nginx** : activer gzip + cache statique sur `/assets/`.
+5. **Limites Docker** : assigner ≥ 2 CPU et 2 Go RAM au conteneur `db`, ≥ 1 CPU au conteneur `kong`.
+
+---
+
+## Détails techniques (section pour développeur)
+
+### Réécriture `AuthContext` — modèle cible
+
+```text
+useEffect:
+  onAuthStateChange:
+    INITIAL_SESSION → setSession + setUser + lance fetchCore()
+    SIGNED_IN même userId → ignore (anti-loop focus)
+    SIGNED_OUT → reset
+    TOKEN_REFRESHED → setSession seul
+
+fetchCore (Promise.all 5 requêtes parallèles — pas de séquentiel):
+  profile (colonnes ciblées)
+  roles
+  role_permissions (colonnes ciblées)
+  user_custom_roles + JOIN custom_roles
+  custom_role_permissions WHERE custom_role_id IN (sous-requête)
+  → setLoading(false) dès profile+roles disponibles
+```
+
+### Migration B (extrait représentatif)
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_user_roles_user ON public.user_roles(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_custom_roles_user ON public.user_custom_roles(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON public.notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_entity_created ON public.audit_logs(entity_type, created_at DESC);
+
+-- Policies "(SELECT auth.uid())" pour cache plan
+DROP POLICY IF EXISTS "Users read own profile" ON public.profiles;
+CREATE POLICY "Users read own profile" ON public.profiles
+  FOR SELECT USING (id = (SELECT auth.uid()) OR has_role((SELECT auth.uid()), 'admin'));
+
+-- Purge initiale
+DELETE FROM public.audit_logs WHERE created_at < now() - INTERVAL '180 days';
+```
+
+Toutes les commandes utilisent `IF NOT EXISTS` / `DROP IF EXISTS` → rejouables sans erreur (conformité aux règles self-hosting du projet).
+
+---
+
+## Garanties de non-régression
+
+- **Aucune suppression de fonctionnalité** : seules les couches techniques sont modifiées.
+- **RLS conservées à l'identique sémantiquement** : seul l'opérateur change pour les rendre cacheables.
+- **Triggers conservés** : `dispatch_notification_email` reste actif mais devient non bloquant.
+- **Compatible Lovable Cloud + self-hosted** : la migration utilise `IF NOT EXISTS` partout.
+- Avant d'écraser une policy je conserve l'ancienne via `DROP IF EXISTS` puis recréation immédiate dans la même transaction.
+
+---
+
+## Gain attendu
+
+| Métrique | Avant | Après |
+|----------|-------|-------|
+| Login (1ʳᵉ requête → app interactive) | 2 – 4 s | 400 – 800 ms |
+| Refresh page authentifiée | 1.5 – 3 s | 300 – 600 ms |
+| INSERT notification (UI bloquée) | 200 – 800 ms | < 50 ms |
+| Listing actions / processus | 400 – 1200 ms | 100 – 300 ms |
+
+---
+
+## Ordre d'exécution proposé après approbation
+
+1. Lot A (frontend) — visible immédiatement, déployable seul.
+2. Lot B (migration unique) — déployée dès l'approbation, idempotente.
+3. Lot C — mise à jour de `SELF_HOSTING_RULES.md` que vous appliquez sur votre serveur (variables GoTrue + horloge + tuning Postgres).
+
+Confirmez si je lance les 3 lots, ou si vous préférez que je commence par A seul pour valider le gain avant de toucher la base.
