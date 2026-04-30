@@ -584,35 +584,43 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
     );
   };
 
-  const ResponsableSelector = ({ actionId, field, value, label, disabled }: { actionId: string; field: string; value: string | null; label: string; disabled?: boolean }) => (
-    <div className="space-y-1">
-      <label className="text-[10px] font-medium text-muted-foreground">{label}</label>
-      <Select value={value ?? "none"} onValueChange={(v) => updateAction(actionId, { [field]: v === "none" ? null : v })} disabled={disabled}>
-        <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Assigner" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">Non assigné</SelectItem>
-          {acteurs.map((a) => <SelectItem key={a.id} value={a.id}>{a.fonction || a.organisation || "Acteur"}</SelectItem>)}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-
-  // Responsable 1 = couplé à responsable_user_id pour cibler la personne réelle (notifications)
-  // NOTE: rendu inline (pas un sous-composant local) pour éviter un remount à chaque render
-  // qui re-déclencherait le useEffect interne et provoquerait des boucles de fetch.
-  const renderResponsableR1 = (action: ProjectAction, disabled?: boolean) => (
+  // Generic responsable selector (Function → User) — rendered inline (NOT as a child component)
+  // to avoid remounting the underlying ActeurUserSelect on every parent render, which would
+  // re-trigger its internal fetch effect and cause loops / "Failed to fetch" errors.
+  type RespFields = {
+    acteur: "responsable_id" | "responsable_id_2" | "responsable_id_3";
+    user: "responsable_user_id" | "responsable_user_id_2" | "responsable_user_id_3";
+  };
+  const renderResponsable = (
+    action: ProjectAction,
+    fields: RespFields,
+    label: string,
+  ) => (
     <div className="space-y-1 w-56">
-      <label className="text-[10px] font-medium text-muted-foreground">Responsable 1</label>
+      <label className="text-[10px] font-medium text-muted-foreground">{label}</label>
       <ActeurUserSelect
-        acteurValue={action.responsable_id ?? ""}
-        userValue={action.responsable_user_id ?? ""}
-        onActeurChange={(v) => updateAction(action.id, { responsable_id: v || null, responsable_user_id: null })}
-        onUserChange={(v) => updateAction(action.id, { responsable_user_id: v || null })}
+        acteurValue={(action[fields.acteur] as string | null) ?? ""}
+        userValue={(action[fields.user] as string | null) ?? ""}
+        onActeurChange={(v) => updateAction(action.id, { [fields.acteur]: v || null, [fields.user]: null })}
+        onUserChange={(v) => updateAction(action.id, { [fields.user]: v || null })}
         acteurs={acteurs}
         placeholder="Assigner"
       />
     </div>
   );
+
+  // Compact label combining function + real user name for read-only displays.
+  // If the function has no clear name, falls back to just showing the user name.
+  const respLabel = (acteurId: string | null, userId: string | null): string | null => {
+    const userName = userId ? formatRespUserName(userId) : null;
+    const acteur = acteurId ? acteurs.find((a) => a.id === acteurId) : null;
+    const fonction = acteur ? (acteur.fonction || acteur.organisation || null) : null;
+    if (fonction && userName) return `${fonction} — ${userName}`;
+    if (fonction) return fonction;
+    if (userName) return userName;
+    if (acteurId) return "Acteur";
+    return null;
+  };
 
   return (
     <div className="space-y-4">
