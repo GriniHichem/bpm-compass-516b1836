@@ -3,29 +3,24 @@ import { HelpModeProvider } from "@/contexts/HelpModeContext";
 import { AppNavbar } from "@/components/AppNavbar";
 import { LicenseBanner } from "@/components/LicenseBanner";
 import { OnboardingCarousel } from "@/components/OnboardingCarousel";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      const uid = data.user?.id;
-      if (uid && !localStorage.getItem(`qprocess_onboarding_seen_${uid}`)) {
-        setShowOnboarding(true);
-      }
-    });
+    if (user?.id && !localStorage.getItem(`qprocess_onboarding_seen_${user.id}`)) {
+      setShowOnboarding(true);
+    }
 
     const forceShow = () => setShowOnboarding(true);
     window.addEventListener("force-onboarding", forceShow);
     return () => window.removeEventListener("force-onboarding", forceShow);
-  }, []);
+  }, [user?.id]);
 
   const handleOnboardingComplete = () => {
-    supabase.auth.getUser().then(({ data }) => {
-      const uid = data.user?.id;
-      if (uid) localStorage.setItem(`qprocess_onboarding_seen_${uid}`, "true");
-    });
+    if (user?.id) localStorage.setItem(`qprocess_onboarding_seen_${user.id}`, "true");
     setShowOnboarding(false);
   };
 
