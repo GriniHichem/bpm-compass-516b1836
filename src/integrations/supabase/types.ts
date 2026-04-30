@@ -2645,6 +2645,8 @@ export type Database = {
           responsable_id_2: string | null
           responsable_id_3: string | null
           responsable_user_id: string | null
+          responsable_user_id_2: string | null
+          responsable_user_id_3: string | null
           statut: string
           title: string
           updated_at: string
@@ -2665,6 +2667,8 @@ export type Database = {
           responsable_id_2?: string | null
           responsable_id_3?: string | null
           responsable_user_id?: string | null
+          responsable_user_id_2?: string | null
+          responsable_user_id_3?: string | null
           statut?: string
           title: string
           updated_at?: string
@@ -2685,6 +2689,8 @@ export type Database = {
           responsable_id_2?: string | null
           responsable_id_3?: string | null
           responsable_user_id?: string | null
+          responsable_user_id_2?: string | null
+          responsable_user_id_3?: string | null
           statut?: string
           title?: string
           updated_at?: string
@@ -2716,6 +2722,20 @@ export type Database = {
             columns: ["responsable_id"]
             isOneToOne: false
             referencedRelation: "acteurs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_actions_responsable_user_id_2_fkey"
+            columns: ["responsable_user_id_2"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_actions_responsable_user_id_3_fkey"
+            columns: ["responsable_user_id_3"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

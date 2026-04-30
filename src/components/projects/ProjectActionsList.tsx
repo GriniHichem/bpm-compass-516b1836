@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { Plus, ChevronDown, ChevronRight, Trash2, CheckCircle2, Circle, Clock, MessageSquare, AlertTriangle, ShieldAlert, CalendarClock, History, UserPlus, X, ListTodo, Lock, RotateCcw, Pin, PinOff, EyeOff, Eye, Filter, ArrowUpDown, SlidersHorizontal, Ban, FileText } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, Trash2, CheckCircle2, Circle, Clock, MessageSquare, AlertTriangle, ShieldAlert, CalendarClock, History, UserPlus, X, ListTodo, Lock, RotateCcw, Pin, PinOff, EyeOff, Eye, Filter, ArrowUpDown, SlidersHorizontal, Ban, FileText, User } from "lucide-react";
 import { ProjectActionComments } from "@/components/projects/ProjectActionComments";
 import { ProjectActionHistory } from "@/components/projects/ProjectActionHistory";
 import { ProjectActionDependencies, type Dependency } from "@/components/projects/ProjectActionDependencies";
@@ -36,6 +36,8 @@ interface ProjectAction {
   responsable_id_2: string | null;
   responsable_id_3: string | null;
   responsable_user_id: string | null;
+  responsable_user_id_2: string | null;
+  responsable_user_id_3: string | null;
   date_debut: string | null;
   echeance: string | null;
   statut: string;
@@ -161,7 +163,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
 
   // Resolve real user names for actions/tasks that have a responsable_user_id set
   const responsableUserIds = [
-    ...actions.map((a) => a.responsable_user_id),
+    ...actions.flatMap((a) => [a.responsable_user_id, a.responsable_user_id_2, a.responsable_user_id_3]),
     ...Object.values(tasksMap).flat().map((t) => t.responsable_user_id),
   ].filter(Boolean) as string[];
   const { formatName: formatRespUserName } = useProfilesById(responsableUserIds);
@@ -173,7 +175,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
       .eq("project_id", projectId)
       .order("ordre");
     if (error) { console.error("Fetch actions error:", error); toast.error("Erreur chargement actions: " + error.message); return; }
-    const acts = (data ?? []).map((d: any) => ({ ...d, multi_tasks: d.multi_tasks ?? false, pinned: d.pinned ?? false, responsable_id_2: d.responsable_id_2 ?? null, responsable_id_3: d.responsable_id_3 ?? null, poids: d.poids ?? null })) as ProjectAction[];
+    const acts = (data ?? []).map((d: any) => ({ ...d, multi_tasks: d.multi_tasks ?? false, pinned: d.pinned ?? false, responsable_id_2: d.responsable_id_2 ?? null, responsable_id_3: d.responsable_id_3 ?? null, responsable_user_id_2: d.responsable_user_id_2 ?? null, responsable_user_id_3: d.responsable_user_id_3 ?? null, poids: d.poids ?? null })) as ProjectAction[];
     setActions(acts);
 
     const r2 = new Set<string>();
@@ -582,35 +584,43 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
     );
   };
 
-  const ResponsableSelector = ({ actionId, field, value, label, disabled }: { actionId: string; field: string; value: string | null; label: string; disabled?: boolean }) => (
-    <div className="space-y-1">
-      <label className="text-[10px] font-medium text-muted-foreground">{label}</label>
-      <Select value={value ?? "none"} onValueChange={(v) => updateAction(actionId, { [field]: v === "none" ? null : v })} disabled={disabled}>
-        <SelectTrigger className="h-8 w-40 text-xs"><SelectValue placeholder="Assigner" /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">Non assigné</SelectItem>
-          {acteurs.map((a) => <SelectItem key={a.id} value={a.id}>{a.fonction || a.organisation || "Acteur"}</SelectItem>)}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-
-  // Responsable 1 = couplé à responsable_user_id pour cibler la personne réelle (notifications)
-  // NOTE: rendu inline (pas un sous-composant local) pour éviter un remount à chaque render
-  // qui re-déclencherait le useEffect interne et provoquerait des boucles de fetch.
-  const renderResponsableR1 = (action: ProjectAction, disabled?: boolean) => (
+  // Generic responsable selector (Function → User) — rendered inline (NOT as a child component)
+  // to avoid remounting the underlying ActeurUserSelect on every parent render, which would
+  // re-trigger its internal fetch effect and cause loops / "Failed to fetch" errors.
+  type RespFields = {
+    acteur: "responsable_id" | "responsable_id_2" | "responsable_id_3";
+    user: "responsable_user_id" | "responsable_user_id_2" | "responsable_user_id_3";
+  };
+  const renderResponsable = (
+    action: ProjectAction,
+    fields: RespFields,
+    label: string,
+  ) => (
     <div className="space-y-1 w-56">
-      <label className="text-[10px] font-medium text-muted-foreground">Responsable 1</label>
+      <label className="text-[10px] font-medium text-muted-foreground">{label}</label>
       <ActeurUserSelect
-        acteurValue={action.responsable_id ?? ""}
-        userValue={action.responsable_user_id ?? ""}
-        onActeurChange={(v) => updateAction(action.id, { responsable_id: v || null, responsable_user_id: null })}
-        onUserChange={(v) => updateAction(action.id, { responsable_user_id: v || null })}
+        acteurValue={(action[fields.acteur] as string | null) ?? ""}
+        userValue={(action[fields.user] as string | null) ?? ""}
+        onActeurChange={(v) => updateAction(action.id, { [fields.acteur]: v || null, [fields.user]: null })}
+        onUserChange={(v) => updateAction(action.id, { [fields.user]: v || null })}
         acteurs={acteurs}
         placeholder="Assigner"
       />
     </div>
   );
+
+  // Compact label combining function + real user name for read-only displays.
+  // If the function has no clear name, falls back to just showing the user name.
+  const respLabel = (acteurId: string | null, userId: string | null): string | null => {
+    const userName = userId ? formatRespUserName(userId) : null;
+    const acteur = acteurId ? acteurs.find((a) => a.id === acteurId) : null;
+    const fonction = acteur ? (acteur.fonction || acteur.organisation || null) : null;
+    if (fonction && userName) return `${fonction} — ${userName}`;
+    if (fonction) return fonction;
+    if (userName) return userName;
+    if (acteurId) return "Acteur";
+    return null;
+  };
 
   return (
     <div className="space-y-4">
@@ -772,9 +782,16 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                           <DateIndicator echeance={action.echeance} statut={action.statut} />
                         </span>
                       )}
-                      {action.responsable_id && <span>• {getActeurLabel(action.responsable_id)}{action.responsable_user_id && formatRespUserName(action.responsable_user_id) ? ` — ${formatRespUserName(action.responsable_user_id)}` : ""}</span>}
-                      {action.responsable_id_2 && <span>• {getActeurLabel(action.responsable_id_2)}</span>}
-                      {action.responsable_id_3 && <span>• {getActeurLabel(action.responsable_id_3)}</span>}
+                      {(() => {
+                        const r1 = respLabel(action.responsable_id, action.responsable_user_id);
+                        const r2 = respLabel(action.responsable_id_2, action.responsable_user_id_2);
+                        const r3 = respLabel(action.responsable_id_3, action.responsable_user_id_3);
+                        return <>
+                          {r1 && <span className="inline-flex items-center gap-1">• <User className="h-3 w-3" />{r1}</span>}
+                          {r2 && <span className="inline-flex items-center gap-1">• <User className="h-3 w-3" />{r2}</span>}
+                          {r3 && <span className="inline-flex items-center gap-1">• <User className="h-3 w-3" />{r3}</span>}
+                        </>;
+                      })()}
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
@@ -897,17 +914,18 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
 
                       {/* Responsables row */}
                       <div className="flex flex-wrap items-end gap-2">
-                        {renderResponsableR1(action)}
+                        {renderResponsable(action, { acteur: "responsable_id", user: "responsable_user_id" }, "Responsable 1")}
 
                         {hasResp2 ? (
-                          <div className="flex items-end gap-1">
-                            <ResponsableSelector actionId={action.id} field="responsable_id_2" value={action.responsable_id_2} label="Responsable 2" />
+                          <div className="flex items-start gap-1">
+                            {renderResponsable(action, { acteur: "responsable_id_2", user: "responsable_user_id_2" }, "Responsable 2")}
                             <Button
-                              variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              variant="ghost" size="icon" className="h-8 w-8 mt-4 text-muted-foreground hover:text-destructive"
                               onClick={() => {
-                                updateAction(action.id, { responsable_id_2: null });
+                                updateAction(action.id, { responsable_id_2: null, responsable_user_id_2: null });
                                 setShowResp2(prev => { const n = new Set(prev); n.delete(action.id); return n; });
                               }}
+                              title="Retirer Responsable 2"
                             >
                               <X className="h-3 w-3" />
                             </Button>
@@ -922,14 +940,15 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                         )}
 
                         {hasResp2 && (hasResp3 ? (
-                          <div className="flex items-end gap-1">
-                            <ResponsableSelector actionId={action.id} field="responsable_id_3" value={action.responsable_id_3} label="Responsable 3" />
+                          <div className="flex items-start gap-1">
+                            {renderResponsable(action, { acteur: "responsable_id_3", user: "responsable_user_id_3" }, "Responsable 3")}
                             <Button
-                              variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              variant="ghost" size="icon" className="h-8 w-8 mt-4 text-muted-foreground hover:text-destructive"
                               onClick={() => {
-                                updateAction(action.id, { responsable_id_3: null });
+                                updateAction(action.id, { responsable_id_3: null, responsable_user_id_3: null });
                                 setShowResp3(prev => { const n = new Set(prev); n.delete(action.id); return n; });
                               }}
+                              title="Retirer Responsable 3"
                             >
                               <X className="h-3 w-3" />
                             </Button>
