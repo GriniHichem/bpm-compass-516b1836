@@ -36,6 +36,8 @@ interface ProjectAction {
   responsable_id_2: string | null;
   responsable_id_3: string | null;
   responsable_user_id: string | null;
+  responsable_user_id_2: string | null;
+  responsable_user_id_3: string | null;
   date_debut: string | null;
   echeance: string | null;
   statut: string;
