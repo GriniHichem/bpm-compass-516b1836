@@ -557,6 +557,16 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
       });
   };
 
+  // Stable sequential number per action, based on creation order (ascending).
+  // Independent from current sort/filter so the badge never changes for a given action.
+  const actionNumberById = useMemo(() => {
+    const map: Record<string, number> = {};
+    [...actions]
+      .sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? ""))
+      .forEach((a, i) => { map[a.id] = i + 1; });
+    return map;
+  }, [actions]);
+
   const togglePin = async (action: ProjectAction) => {
     await updateAction(action.id, { pinned: !action.pinned });
     toast.success(action.pinned ? "Action désépinglée" : "Action épinglée comme prioritaire");
