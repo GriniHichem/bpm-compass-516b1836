@@ -139,6 +139,7 @@ export default function ProjectDetail() {
         avancement: a.avancement,
         responsable: [getActeurLabel(a.responsable_id), getActeurLabel(a.responsable_id_2), getActeurLabel(a.responsable_id_3)].filter(Boolean).join(", "),
         poids: a.poids ?? null,
+        created_at: a.created_at ?? null,
         level: "action" as const,
         children: a.multi_tasks ? (tasksMap[a.id] ?? []).map((t: any) => ({
           id: t.id,
