@@ -843,6 +843,13 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                   {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
                   <div className="flex-1 min-w-0 text-left">
                     <div className="flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 h-5 px-1.5 text-[10px] font-mono font-semibold tabular-nums bg-muted/40 text-muted-foreground border-border/60"
+                        title="Numéro d'action (ordre de création)"
+                      >
+                        #{String(actionNumberById[action.id] ?? 0).padStart(3, "0")}
+                      </Badge>
                       <p className={`font-medium text-sm line-clamp-1 ${isFrozen ? "text-emerald-700 dark:text-emerald-400" : ""}`}>{action.title}</p>
                       {action.multi_tasks && (
                         <Badge variant="outline" className="text-[9px] gap-1 h-4">
