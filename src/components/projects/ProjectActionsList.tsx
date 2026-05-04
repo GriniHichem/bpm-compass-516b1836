@@ -47,6 +47,7 @@ interface ProjectAction {
   multi_tasks: boolean;
   pinned: boolean;
   poids: number | null;
+  created_at?: string | null;
 }
 
 interface ProjectTask {
