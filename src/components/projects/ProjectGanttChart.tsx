@@ -166,6 +166,11 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
             ) : (
               <span className="w-3.5" />
             )}
+            {item.level === "action" && actionNumberById[item.id] != null && (
+              <span className="shrink-0 inline-flex items-center h-4 px-1 mr-1 rounded border border-border/60 bg-muted/40 text-muted-foreground text-[9px] font-mono font-semibold tabular-nums">
+                #{String(actionNumberById[item.id]).padStart(3, "0")}
+              </span>
+            )}
             <span className={`text-xs truncate ${item.level === "project" ? "font-semibold text-foreground" : "font-medium text-foreground"} ${item.statut === "annulee" ? "line-through opacity-50" : ""}`}>
               {item.statut === "bloquee" && <Lock className="h-3 w-3 inline mr-1 text-slate-500" />}
               {item.statut === "annulee" && <Ban className="h-3 w-3 inline mr-1 text-muted-foreground" />}
