@@ -91,6 +91,23 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
 
   const todayOffset = diffDays(startDate, new Date());
 
+  // Stable per-action sequential number based on creation order (project-wide).
+  const actionNumberById = useMemo(() => {
+    const allActions: GanttItem[] = [];
+    const collect = (list: GanttItem[]) => {
+      list.forEach((it) => {
+        if (it.level === "action") allActions.push(it);
+        if (it.children) collect(it.children);
+      });
+    };
+    collect(items);
+    const map: Record<string, number> = {};
+    [...allActions]
+      .sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? ""))
+      .forEach((a, i) => { map[a.id] = i + 1; });
+    return map;
+  }, [items]);
+
   const toggleCollapse = (id: string) => {
     setCollapsed((prev) => {
       const next = new Set(prev);
