@@ -105,7 +105,14 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
   const renderRows = (list: GanttItem[], depth: number = 0): React.ReactNode[] => {
     const rows: React.ReactNode[] = [];
     list.forEach((item, idx) => {
-      const hasChildren = item.children && item.children.length > 0;
+      // Tasks are NOT rendered as Gantt rows — they live in the side panel of their parent action.
+      if (item.level === "task") return;
+
+      // For the chart, only consider non-task children (i.e. project → actions).
+      const visibleChildren = (item.children ?? []).filter((c) => c.level !== "task");
+      const hasVisibleChildren = visibleChildren.length > 0;
+      const taskCount = (item.children ?? []).filter((c) => c.level === "task").length;
+
       const isCollapsed = collapsed.has(item.id);
       const isFocused = focusedItem?.id === item.id;
       const start = item.date_debut ? diffDays(startDate, new Date(item.date_debut)) : null;
@@ -131,7 +138,7 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
             className="w-72 shrink-0 flex items-center gap-1.5 px-3 py-2 border-r border-border/20"
             style={{ paddingLeft: `${12 + depth * 16}px` }}
           >
-            {hasChildren ? (
+            {hasVisibleChildren ? (
               <button
                 onClick={(e) => { e.stopPropagation(); toggleCollapse(item.id); }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
@@ -141,12 +148,15 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
             ) : (
               <span className="w-3.5" />
             )}
-            <span className={`text-xs truncate ${item.level === "project" ? "font-semibold text-foreground" : item.level === "action" ? "font-medium text-foreground" : "text-muted-foreground"} ${item.statut === "annulee" ? "line-through opacity-50" : ""}`}>
+            <span className={`text-xs truncate ${item.level === "project" ? "font-semibold text-foreground" : "font-medium text-foreground"} ${item.statut === "annulee" ? "line-through opacity-50" : ""}`}>
               {item.statut === "bloquee" && <Lock className="h-3 w-3 inline mr-1 text-slate-500" />}
               {item.statut === "annulee" && <Ban className="h-3 w-3 inline mr-1 text-muted-foreground" />}
               {item.title}
               {item.level === "action" && item.poids != null && (
                 <span className="ml-1 text-[9px] text-primary font-normal">({item.poids}%)</span>
+              )}
+              {item.level === "action" && taskCount > 0 && (
+                <span className="ml-1 text-[9px] text-muted-foreground font-normal">· {taskCount} tâche{taskCount > 1 ? "s" : ""}</span>
               )}
             </span>
           </div>
@@ -181,6 +191,9 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
                   <p>{item.date_debut ?? "?"} → {item.echeance ?? "?"}</p>
                   <p>Avancement: {item.avancement}%</p>
                   {item.responsable && <p>Resp: {item.responsable}</p>}
+                  {item.level === "action" && taskCount > 0 && (
+                    <p className="text-muted-foreground">{taskCount} tâche{taskCount > 1 ? "s" : ""} (voir panneau de droite)</p>
+                  )}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -188,8 +201,8 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
         </div>
       );
 
-      if (hasChildren && !isCollapsed) {
-        rows.push(...renderRows(item.children!, depth + 1));
+      if (hasVisibleChildren && !isCollapsed) {
+        rows.push(...renderRows(visibleChildren, depth + 1));
       }
     });
     return rows;
