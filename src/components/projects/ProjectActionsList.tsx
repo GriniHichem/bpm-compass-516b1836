@@ -75,13 +75,13 @@ interface DeadlineLog {
   created_at: string;
 }
 
-const ACTION_STATUS: Record<string, { label: string; class: string }> = {
-  planifiee: { label: "Planifiée", class: "bg-muted text-muted-foreground" },
-  en_cours: { label: "En cours", class: "bg-primary/15 text-primary" },
-  terminee: { label: "Terminée", class: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
-  en_retard: { label: "En retard", class: "bg-destructive/15 text-destructive" },
-  bloquee: { label: "Bloquée", class: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
-  annulee: { label: "Annulée", class: "bg-muted/50 text-muted-foreground line-through" },
+const ACTION_STATUS: Record<string, { label: string; class: string; dot: string; bar: string; stripe: string; icon: any }> = {
+  planifiee: { label: "Planifiée", class: "bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30", dot: "bg-slate-400", bar: "[&>div]:bg-slate-400", stripe: "bg-slate-400", icon: Circle },
+  en_cours:  { label: "En cours",  class: "bg-primary/15 text-primary border-primary/30",                          dot: "bg-primary",  bar: "[&>div]:bg-primary",  stripe: "bg-primary",  icon: Clock },
+  terminee:  { label: "Terminée",  class: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30", dot: "bg-emerald-500", bar: "[&>div]:bg-emerald-500", stripe: "bg-emerald-500", icon: CheckCircle2 },
+  en_retard: { label: "En retard", class: "bg-destructive/15 text-destructive border-destructive/30",              dot: "bg-destructive", bar: "[&>div]:bg-destructive", stripe: "bg-destructive", icon: AlertTriangle },
+  bloquee:   { label: "Bloquée",   class: "bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30", dot: "bg-slate-500", bar: "[&>div]:bg-slate-500", stripe: "bg-slate-500", icon: Ban },
+  annulee:   { label: "Annulée",   class: "bg-muted/50 text-muted-foreground line-through border-border",          dot: "bg-muted-foreground/40", bar: "[&>div]:bg-muted-foreground/40", stripe: "bg-muted-foreground/40", icon: X },
 };
 
 const TASK_STATUS: Record<string, { label: string; icon: any; class: string }> = {
