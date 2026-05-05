@@ -31,16 +31,16 @@ interface Props {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  brouillon: "bg-muted",
-  en_cours: "bg-primary",
-  planifiee: "bg-muted-foreground/40",
-  terminee: "bg-emerald-500",
-  termine: "bg-emerald-500",
-  a_faire: "bg-muted-foreground/30",
-  en_retard: "bg-destructive",
+  brouillon: "bg-slate-400",
+  en_cours: "bg-gradient-to-r from-primary to-primary/80",
+  planifiee: "bg-gradient-to-r from-slate-400 to-slate-500",
+  terminee: "bg-gradient-to-r from-emerald-500 to-emerald-600",
+  termine: "bg-gradient-to-r from-emerald-500 to-emerald-600",
+  a_faire: "bg-slate-400",
+  en_retard: "bg-gradient-to-r from-destructive to-red-600",
   archive: "bg-secondary",
-  bloquee: "bg-slate-400",
-  annulee: "bg-muted-foreground/20",
+  bloquee: "bg-gradient-to-r from-slate-500 to-slate-600",
+  annulee: "bg-muted-foreground/30",
 };
 
 const STATUS_LABELS: Record<string, { label: string; class: string }> = {
@@ -167,7 +167,7 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
               <span className="w-3.5" />
             )}
             {item.level === "action" && actionNumberById[item.id] != null && (
-              <span className="shrink-0 inline-flex items-center h-4 px-1 mr-1 rounded border border-border/60 bg-muted/40 text-muted-foreground text-[9px] font-mono font-semibold tabular-nums">
+              <span className="shrink-0 inline-flex items-center h-4 px-1 mr-1 rounded border border-primary/30 bg-primary/10 text-primary text-[9px] font-mono font-semibold tabular-nums">
                 #{String(actionNumberById[item.id]).padStart(3, "0")}
               </span>
             )}
@@ -190,20 +190,27 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className={`absolute top-1/2 -translate-y-1/2 rounded-md h-6 overflow-hidden ${isOverdue ? "ring-1 ring-destructive/60" : ""}`}
+                    className={`absolute top-1/2 -translate-y-1/2 rounded-md h-7 overflow-hidden shadow-sm transition-all hover:h-8 hover:shadow-md ${isOverdue ? "ring-2 ring-destructive/60" : "ring-1 ring-black/5 dark:ring-white/10"}`}
                     style={{
                       left: `${(barStart / totalDays) * 100}%`,
                       width: `${(Math.max(1, barEnd - barStart) / totalDays) * 100}%`,
-                      minWidth: "12px",
+                      minWidth: "14px",
                     }}
                   >
-                    <div className={`h-full ${barColor} opacity-20 rounded-md`} />
+                    {/* Track */}
+                    <div className={`absolute inset-0 ${barColor} opacity-25 rounded-md`} />
+                    {/* Progress fill */}
                     <div
                       className={`absolute inset-y-0 left-0 ${barColor} rounded-md transition-all`}
                       style={{ width: `${item.avancement}%` }}
                     />
+                    {/* Diagonal stripes for overdue */}
+                    {isOverdue && (
+                      <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.4) 4px, rgba(255,255,255,0.4) 8px)" }} />
+                    )}
+                    {/* Percentage label */}
                     {item.avancement > 0 && (
-                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white mix-blend-difference">
+                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow-sm tracking-wide">
                         {item.avancement}%
                       </span>
                     )}
@@ -382,7 +389,7 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
   const ganttContent = (
     <>
       {/* Header */}
-      <div className="flex border-b border-border/30 bg-muted/30 shrink-0">
+      <div className="flex border-b border-border/40 bg-gradient-to-b from-muted/40 to-muted/20 shrink-0 sticky top-0 z-20 backdrop-blur">
         <div className="w-72 shrink-0 px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider border-r border-border/20">
           Élément
         </div>
@@ -412,10 +419,10 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
 
       {/* Rows */}
       <div className="flex-1 relative overflow-y-auto">
-        {/* Today marker */}
+        {/* Today marker line */}
         {todayOffset >= 0 && todayOffset <= totalDays && (
           <div
-            className="absolute top-0 bottom-0 w-px bg-destructive/50 z-10 pointer-events-none"
+            className="absolute top-0 bottom-0 w-0.5 bg-destructive z-10 pointer-events-none shadow-[0_0_8px_hsl(var(--destructive)/0.5)]"
             style={{ left: `calc(288px + (100% - 288px) * ${todayOffset / totalDays})` }}
           />
         )}
