@@ -826,66 +826,86 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
         const isBlocked = action.statut === "bloquee" || isBlockedByDeps(action.id);
         const isCancelled = action.statut === "annulee";
 
+        const StatusIcon = st.icon ?? Circle;
+        const stripeColor = action.pinned ? "bg-primary" : st.stripe;
+        const progressBarClass = action.avancement >= 100
+          ? "[&>div]:bg-emerald-500"
+          : actionDateStatus.status === "overdue"
+            ? "[&>div]:bg-destructive"
+            : actionDateStatus.status === "urgent" || actionDateStatus.status === "exceeds"
+              ? "[&>div]:bg-amber-500"
+              : st.bar;
+
         return (
           <Collapsible key={action.id} open={isOpen} onOpenChange={() => setExpanded(isOpen ? null : action.id)}>
-            <div className={`border rounded-xl overflow-hidden bg-card transition-colors ${
-              action.pinned ? "border-primary/40 border-l-4 border-l-primary" :
-              isFrozen ? "border-emerald-500/40 bg-emerald-50/5" :
-              isBlocked ? "border-slate-400/40 bg-slate-50/5 dark:bg-slate-900/10" :
-              isCancelled ? "border-muted/40 bg-muted/10 opacity-60" :
+            <div className={`relative border rounded-xl overflow-hidden bg-card transition-all hover:shadow-md ${
+              action.pinned ? "border-primary/40" :
+              isFrozen ? "border-emerald-500/40" :
+              isBlocked ? "border-slate-400/40" :
+              isCancelled ? "border-muted/40 opacity-70" :
               actionDateStatus.status === "overdue" ? "border-destructive/40" :
               actionDateStatus.status === "exceeds" ? "border-orange-400/40" :
               actionDateStatus.status === "urgent" ? "border-amber-400/40" :
               "border-border/40"
             }`} style={{ boxShadow: "var(--shadow-sm)" }}>
+              {/* Colored left stripe by status */}
+              <div className={`absolute left-0 top-0 bottom-0 w-1 ${stripeColor}`} />
+
               <CollapsibleTrigger className="w-full">
-                <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer">
+                <div className="flex items-center gap-3 pl-4 pr-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer">
                   {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+
+                  {/* Status icon medallion */}
+                  <div className={`shrink-0 h-8 w-8 rounded-lg flex items-center justify-center ${st.class} border`}>
+                    <StatusIcon className="h-4 w-4" />
+                  </div>
+
                   <div className="flex-1 min-w-0 text-left">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge
                         variant="outline"
-                        className="shrink-0 h-5 px-1.5 text-[10px] font-mono font-semibold tabular-nums bg-muted/40 text-muted-foreground border-border/60"
+                        className="shrink-0 h-5 px-1.5 text-[10px] font-mono font-semibold tabular-nums bg-primary/5 text-primary border-primary/30"
                         title="Numéro d'action (ordre de création)"
                       >
                         #{String(actionNumberById[action.id] ?? 0).padStart(3, "0")}
                       </Badge>
-                      <p className={`font-medium text-sm line-clamp-1 ${isFrozen ? "text-emerald-700 dark:text-emerald-400" : ""}`}>{action.title}</p>
+                      <p className={`font-semibold text-sm line-clamp-1 ${isFrozen ? "text-emerald-700 dark:text-emerald-400" : "text-foreground"}`}>{action.title}</p>
                       {action.multi_tasks && (
-                        <Badge variant="outline" className="text-[9px] gap-1 h-4">
-                          <ListTodo className="h-2.5 w-2.5" /> Multi-tâches
+                        <Badge variant="outline" className="text-[9px] gap-1 h-4 bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30">
+                          <ListTodo className="h-2.5 w-2.5" /> {tasks.length} tâche{tasks.length > 1 ? "s" : ""}
                         </Badge>
                       )}
                       {action.pinned && (
-                        <Badge className="bg-primary/15 text-primary text-[9px] gap-1 h-4">
+                        <Badge className="bg-primary/15 text-primary border border-primary/30 text-[9px] gap-1 h-4">
                           <Pin className="h-2.5 w-2.5" /> Prioritaire
                         </Badge>
                       )}
                       {isFrozen && (
-                        <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[9px] gap-1 h-4">
+                        <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 text-[9px] gap-1 h-4">
                           <Lock className="h-2.5 w-2.5" /> Figée
                         </Badge>
                       )}
-                      {isBlocked && (
-                        <Badge className="bg-slate-500/15 text-slate-600 dark:text-slate-400 text-[9px] gap-1 h-4">
+                      {isBlocked && !isFrozen && (
+                        <Badge className="bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/30 text-[9px] gap-1 h-4">
                           <Ban className="h-2.5 w-2.5" /> Bloquée
                         </Badge>
                       )}
                       {isCancelled && (
-                        <Badge className="bg-muted text-muted-foreground text-[9px] gap-1 h-4 line-through">
+                        <Badge className="bg-muted text-muted-foreground border text-[9px] gap-1 h-4 line-through">
                           Annulée
                         </Badge>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
-                      {action.multi_tasks ? (
-                        <span>{tasks.length} tâche{tasks.length !== 1 ? "s" : ""}</span>
-                      ) : (
-                        <span>Action simple</span>
-                      )}
+                    <div className="flex items-center gap-x-2.5 gap-y-1 mt-1 text-xs text-muted-foreground flex-wrap">
                       {action.echeance && (
-                        <span className="flex items-center gap-1">
-                          • Échéance: {action.echeance}
+                        <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 ${
+                          actionDateStatus.status === "overdue" ? "bg-destructive/10 text-destructive" :
+                          actionDateStatus.status === "urgent" || actionDateStatus.status === "exceeds" ? "bg-amber-500/10 text-amber-700 dark:text-amber-400" :
+                          actionDateStatus.status === "warning" ? "bg-amber-500/5 text-amber-600 dark:text-amber-400" :
+                          "bg-muted/40"
+                        }`}>
+                          <CalendarClock className="h-3 w-3" />
+                          {action.echeance}
                           <DateIndicator echeance={action.echeance} statut={action.statut} />
                         </span>
                       )}
@@ -893,28 +913,38 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                         const r1 = respLabel(action.responsable_id, action.responsable_user_id);
                         const r2 = respLabel(action.responsable_id_2, action.responsable_user_id_2);
                         const r3 = respLabel(action.responsable_id_3, action.responsable_user_id_3);
-                        return <>
-                          {r1 && <span className="inline-flex items-center gap-1">• <User className="h-3 w-3" />{r1}</span>}
-                          {r2 && <span className="inline-flex items-center gap-1">• <User className="h-3 w-3" />{r2}</span>}
-                          {r3 && <span className="inline-flex items-center gap-1">• <User className="h-3 w-3" />{r3}</span>}
-                        </>;
+                        const resps = [r1, r2, r3].filter(Boolean);
+                        if (resps.length === 0) return null;
+                        return (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-muted/40 px-1.5 py-0.5">
+                            <User className="h-3 w-3" />
+                            <span className="truncate max-w-[260px]">{resps.join(" · ")}</span>
+                          </span>
+                        );
                       })()}
                     </div>
                   </div>
+
                   <div className="flex items-center gap-3 shrink-0">
-                    <div className="flex items-center gap-2 w-24">
-                      <Progress value={action.avancement} className="h-1.5" />
-                      <span className="text-[10px] font-medium text-muted-foreground">{action.avancement}%</span>
+                    {/* Progress with colored bar + value chip */}
+                    <div className="hidden sm:flex items-center gap-1.5 w-28">
+                      <Progress value={action.avancement} className={`h-2 flex-1 ${progressBarClass}`} />
+                      <span className={`text-[11px] font-bold tabular-nums w-8 text-right ${
+                        action.avancement >= 100 ? "text-emerald-600 dark:text-emerald-400" :
+                        action.avancement >= 50 ? "text-primary" :
+                        "text-muted-foreground"
+                      }`}>{action.avancement}%</span>
                     </div>
                     {canEdit && (
                       <button
                         className={`shrink-0 p-1 rounded transition-colors ${action.pinned ? "text-primary hover:text-primary/70" : "text-muted-foreground/40 hover:text-primary"}`}
                         onClick={(e) => { e.stopPropagation(); togglePin(action); }}
+                        title={action.pinned ? "Détacher" : "Épingler"}
                       >
                         {action.pinned ? <Pin className="h-3.5 w-3.5" /> : <PinOff className="h-3.5 w-3.5" />}
                       </button>
                     )}
-                    <Badge className={`${st.class} text-[10px]`}>{st.label}</Badge>
+                    <Badge className={`${st.class} border text-[10px] font-medium`}>{st.label}</Badge>
                   </div>
                 </div>
               </CollapsibleTrigger>
