@@ -419,10 +419,10 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
 
       {/* Rows */}
       <div className="flex-1 relative overflow-y-auto">
-        {/* Today marker */}
+        {/* Today marker line */}
         {todayOffset >= 0 && todayOffset <= totalDays && (
           <div
-            className="absolute top-0 bottom-0 w-px bg-destructive/50 z-10 pointer-events-none"
+            className="absolute top-0 bottom-0 w-0.5 bg-destructive z-10 pointer-events-none shadow-[0_0_8px_hsl(var(--destructive)/0.5)]"
             style={{ left: `calc(288px + (100% - 288px) * ${todayOffset / totalDays})` }}
           />
         )}
