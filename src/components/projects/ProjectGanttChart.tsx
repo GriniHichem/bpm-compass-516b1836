@@ -31,16 +31,16 @@ interface Props {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  brouillon: "bg-muted",
-  en_cours: "bg-primary",
-  planifiee: "bg-muted-foreground/40",
-  terminee: "bg-emerald-500",
-  termine: "bg-emerald-500",
-  a_faire: "bg-muted-foreground/30",
-  en_retard: "bg-destructive",
+  brouillon: "bg-slate-400",
+  en_cours: "bg-gradient-to-r from-primary to-primary/80",
+  planifiee: "bg-gradient-to-r from-slate-400 to-slate-500",
+  terminee: "bg-gradient-to-r from-emerald-500 to-emerald-600",
+  termine: "bg-gradient-to-r from-emerald-500 to-emerald-600",
+  a_faire: "bg-slate-400",
+  en_retard: "bg-gradient-to-r from-destructive to-red-600",
   archive: "bg-secondary",
-  bloquee: "bg-slate-400",
-  annulee: "bg-muted-foreground/20",
+  bloquee: "bg-gradient-to-r from-slate-500 to-slate-600",
+  annulee: "bg-muted-foreground/30",
 };
 
 const STATUS_LABELS: Record<string, { label: string; class: string }> = {
