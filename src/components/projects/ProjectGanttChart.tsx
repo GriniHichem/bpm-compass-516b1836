@@ -389,7 +389,7 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
   const ganttContent = (
     <>
       {/* Header */}
-      <div className="flex border-b border-border/30 bg-muted/30 shrink-0">
+      <div className="flex border-b border-border/40 bg-gradient-to-b from-muted/40 to-muted/20 shrink-0 sticky top-0 z-20 backdrop-blur">
         <div className="w-72 shrink-0 px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider border-r border-border/20">
           Élément
         </div>
