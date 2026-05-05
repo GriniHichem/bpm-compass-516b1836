@@ -167,7 +167,7 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
               <span className="w-3.5" />
             )}
             {item.level === "action" && actionNumberById[item.id] != null && (
-              <span className="shrink-0 inline-flex items-center h-4 px-1 mr-1 rounded border border-border/60 bg-muted/40 text-muted-foreground text-[9px] font-mono font-semibold tabular-nums">
+              <span className="shrink-0 inline-flex items-center h-4 px-1 mr-1 rounded border border-primary/30 bg-primary/10 text-primary text-[9px] font-mono font-semibold tabular-nums">
                 #{String(actionNumberById[item.id]).padStart(3, "0")}
               </span>
             )}
