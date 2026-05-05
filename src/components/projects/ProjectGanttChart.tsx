@@ -190,20 +190,27 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
-                    className={`absolute top-1/2 -translate-y-1/2 rounded-md h-6 overflow-hidden ${isOverdue ? "ring-1 ring-destructive/60" : ""}`}
+                    className={`absolute top-1/2 -translate-y-1/2 rounded-md h-7 overflow-hidden shadow-sm transition-all hover:h-8 hover:shadow-md ${isOverdue ? "ring-2 ring-destructive/60" : "ring-1 ring-black/5 dark:ring-white/10"}`}
                     style={{
                       left: `${(barStart / totalDays) * 100}%`,
                       width: `${(Math.max(1, barEnd - barStart) / totalDays) * 100}%`,
-                      minWidth: "12px",
+                      minWidth: "14px",
                     }}
                   >
-                    <div className={`h-full ${barColor} opacity-20 rounded-md`} />
+                    {/* Track */}
+                    <div className={`absolute inset-0 ${barColor} opacity-25 rounded-md`} />
+                    {/* Progress fill */}
                     <div
                       className={`absolute inset-y-0 left-0 ${barColor} rounded-md transition-all`}
                       style={{ width: `${item.avancement}%` }}
                     />
+                    {/* Diagonal stripes for overdue */}
+                    {isOverdue && (
+                      <div className="absolute inset-0 opacity-30" style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.4) 4px, rgba(255,255,255,0.4) 8px)" }} />
+                    )}
+                    {/* Percentage label */}
                     {item.avancement > 0 && (
-                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white mix-blend-difference">
+                      <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white drop-shadow-sm tracking-wide">
                         {item.avancement}%
                       </span>
                     )}
