@@ -2562,28 +2562,34 @@ export type Database = {
         Row: {
           action_id: string
           created_at: string
+          entity_type: string
           field_name: string
           id: string
           new_value: string | null
           old_value: string | null
+          task_id: string | null
           user_id: string | null
         }
         Insert: {
           action_id: string
           created_at?: string
+          entity_type?: string
           field_name: string
           id?: string
           new_value?: string | null
           old_value?: string | null
+          task_id?: string | null
           user_id?: string | null
         }
         Update: {
           action_id?: string
           created_at?: string
+          entity_type?: string
           field_name?: string
           id?: string
           new_value?: string | null
           old_value?: string | null
+          task_id?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -2592,6 +2598,13 @@ export type Database = {
             columns: ["action_id"]
             isOneToOne: false
             referencedRelation: "project_actions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_action_history_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "project_tasks"
             referencedColumns: ["id"]
           },
         ]
