@@ -1158,8 +1158,13 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                   {/* Tasks — only shown in multi-tasks mode */}
                   {action.multi_tasks && (
                     <>
-                      <div className="space-y-1.5">
-                        {tasks.map((task) => {
+                       <div className="space-y-1.5">
+                        {[...tasks].sort((a, b) => {
+                          if (!a.echeance && !b.echeance) return 0;
+                          if (!a.echeance) return 1;
+                          if (!b.echeance) return -1;
+                          return a.echeance.localeCompare(b.echeance);
+                        }).map((task) => {
                           const ts = TASK_STATUS[task.statut] ?? TASK_STATUS.a_faire;
                           const TaskIcon = ts.icon;
                           const taskDateStatus = getDateStatus(task.echeance, projectDeadline, task.statut);
