@@ -747,6 +747,15 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
         </div>
       )}
 
+      {!projectDeadline && actions.length > 0 && (
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={() => setProjectHistoryOpen(true)}>
+            <History className="h-3.5 w-3.5" />
+            Historique du projet
+          </Button>
+        </div>
+      )}
+
       {/* Filter bar — desktop ≥sm */}
       {actions.length > 0 && (
         <div className="hidden sm:flex flex-wrap items-center gap-2 rounded-lg border border-border/30 bg-muted/10 px-3 py-2">
