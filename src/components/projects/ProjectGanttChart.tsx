@@ -445,7 +445,7 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
   if (fullscreen) {
     return (
       <ResizablePanelGroup direction="horizontal" className="h-full">
-        <ResizablePanel defaultSize={focusedItem ? 68 : 100} minSize={40}>
+        <ResizablePanel defaultSize={focusedItem ? 62 : 100} minSize={35}>
           <div className="h-full flex flex-col overflow-hidden bg-card">
             {ganttContent}
           </div>
@@ -453,7 +453,7 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
         {focusedItem && (
           <>
             <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={32} minSize={24} maxSize={50}>
+            <ResizablePanel defaultSize={38} minSize={28} maxSize={55}>
               <div className="h-full border-l border-border/30 bg-card animate-in slide-in-from-right-4 duration-200">
                 {renderDetailPanel()}
               </div>
