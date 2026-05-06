@@ -169,10 +169,10 @@ export function ProjectCollaborators({ projectId, responsableUserId, visibility,
           {responsableProfile ? (
             <div className="flex items-center gap-2 justify-between rounded-lg border border-border/30 bg-muted/10 px-3 py-2">
               <div className="flex items-center gap-2 min-w-0">
-              <Avatar className="h-6 w-6">
-                <AvatarImage src={undefined} />
-                <AvatarFallback className="text-[10px]">{getInitials(responsableProfile.id)}</AvatarFallback>
-              </Avatar>
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={undefined} />
+                  <AvatarFallback className="text-[10px]">{getInitials(responsableProfile.id)}</AvatarFallback>
+                </Avatar>
                 <span className="text-sm truncate">{getProfileName(responsableProfile.id)}</span>
                 <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />
               </div>
@@ -272,44 +272,45 @@ export function ProjectCollaborators({ projectId, responsableUserId, visibility,
         )}
       </CardContent>
 
-      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Transfert de responsabilité</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Nouveau responsable</Label>
-              <Select value={transferUserId || "none"} onValueChange={(v) => setTransferUserId(v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner un utilisateur" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sélectionner un utilisateur</SelectItem>
-                  {transferCandidates.map(p => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {`${p.prenom} ${p.nom}`.trim() || p.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Motif du transfert</Label>
-              <Textarea
-                value={transferReason}
-                onChange={(e) => setTransferReason(e.target.value)}
-                rows={3}
-                placeholder="Précisez la raison si nécessaire"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setTransferOpen(false)}>Annuler</Button>
-              <Button onClick={handleTransferResponsable} disabled={!transferUserId || transferring}>
-                {transferring ? "Transfert..." : "Confirmer le transfert"}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </Card>
+
+    <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Transfert de responsabilité</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Nouveau responsable</Label>
+            <Select value={transferUserId || "none"} onValueChange={(v) => setTransferUserId(v === "none" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="Sélectionner un utilisateur" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sélectionner un utilisateur</SelectItem>
+                {transferCandidates.map(p => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {`${p.prenom} ${p.nom}`.trim() || p.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Motif du transfert</Label>
+            <Textarea
+              value={transferReason}
+              onChange={(e) => setTransferReason(e.target.value)}
+              rows={3}
+              placeholder="Précisez la raison si nécessaire"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setTransferOpen(false)}>Annuler</Button>
+            <Button onClick={handleTransferResponsable} disabled={!transferUserId || transferring}>
+              {transferring ? "Transfert..." : "Confirmer le transfert"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
