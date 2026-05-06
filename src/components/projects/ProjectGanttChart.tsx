@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { ChevronDown, ChevronRight, Lock, Ban, Calendar, User, Target, X, Weight, MessageSquare } from "lucide-react";
+import { ChevronDown, ChevronRight, Lock, Ban, Calendar, User, Target, X, Weight, MessageSquare, Link2, ArrowUp, ArrowDown, GitBranch, Zap } from "lucide-react";
 import { ProjectActionComments } from "./ProjectActionComments";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GanttItem {
   id: string;
@@ -59,9 +60,28 @@ const STATUS_LABELS: Record<string, { label: string; class: string }> = {
 function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 function diffDays(a: Date, b: Date) { return Math.ceil((b.getTime() - a.getTime()) / 86400000); }
 
+const DEP_TYPES: Record<string, { label: string; icon: typeof ArrowUp; color: string }> = {
+  before: { label: "Avant", icon: ArrowUp, color: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
+  after: { label: "Après", icon: ArrowDown, color: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400" },
+  parallel: { label: "Parallèle", icon: GitBranch, color: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
+  exclusive: { label: "Exclusive", icon: Zap, color: "bg-purple-500/15 text-purple-700 dark:text-purple-400" },
+};
+
 export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, projectId, projectResponsableUserId }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [focusedItem, setFocusedItem] = useState<GanttItem | null>(null);
+  const [dependencies, setDependencies] = useState<Array<{ id: string; source_action_id: string; target_action_id: string; dependency_type: string }>>([]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("project_action_dependencies" as any)
+        .select("id, source_action_id, target_action_id, dependency_type")
+        .eq("project_id", projectId);
+      if (data) setDependencies(data as any);
+    })();
+  }, [projectId]);
 
   const { startDate, endDate, totalDays, months } = useMemo(() => {
     let minD = new Date();
@@ -181,6 +201,19 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
               {item.level === "action" && taskCount > 0 && (
                 <span className="ml-1 text-[9px] text-muted-foreground font-normal">· {taskCount} tâche{taskCount > 1 ? "s" : ""}</span>
               )}
+              {item.level === "action" && (() => {
+                const depCount = dependencies.filter(d => d.source_action_id === item.id || d.target_action_id === item.id).length;
+                return depCount > 0 ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="ml-1 inline-flex items-center gap-0.5 text-[9px] text-primary font-medium">
+                        <Link2 className="h-2.5 w-2.5" />{depCount}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">{depCount} dépendance{depCount > 1 ? "s" : ""}</TooltipContent>
+                  </Tooltip>
+                ) : null;
+              })()}
             </span>
           </div>
 
@@ -245,6 +278,23 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
     const daysLeft = focusedItem.echeance ? diffDays(new Date(), new Date(focusedItem.echeance)) : null;
     const children = focusedItem.children ?? [];
     const showComments = canComment && focusedItem.level === "action" && projectId;
+
+    // Build action lookup (id -> {title, code})
+    const actionLookup: Record<string, { title: string; code: string }> = {};
+    const collectActions = (list: GanttItem[]) => {
+      list.forEach(it => {
+        if (it.level === "action") {
+          const num = actionNumberById[it.id];
+          actionLookup[it.id] = { title: it.title, code: num != null ? `A-${String(num).padStart(3, "0")}` : "" };
+        }
+        if (it.children) collectActions(it.children);
+      });
+    };
+    collectActions(items);
+
+    const myDeps = focusedItem.level === "action"
+      ? dependencies.filter(d => d.source_action_id === focusedItem.id || d.target_action_id === focusedItem.id)
+      : [];
 
     return (
       <div className="h-full flex flex-col">
@@ -363,6 +413,55 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
                           </div>
                           <Badge className={`${cst.class} text-[9px]`}>{cst.label}</Badge>
                         </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Dependencies section */}
+            {focusedItem.level === "action" && myDeps.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Link2 className="h-3 w-3 text-primary" /> Dépendances ({myDeps.length})
+                </h4>
+                <div className="grid gap-1.5">
+                  {myDeps.map(dep => {
+                    const isSource = dep.source_action_id === focusedItem.id;
+                    const otherId = isSource ? dep.target_action_id : dep.source_action_id;
+                    const other = actionLookup[otherId];
+                    const dt = DEP_TYPES[dep.dependency_type] ?? DEP_TYPES.before;
+                    const Icon = dt.icon;
+                    const direction = isSource ? "→" : "←";
+                    return (
+                      <div
+                        key={dep.id}
+                        className="flex items-center gap-2 rounded-lg border border-border/20 bg-card px-3 py-2 hover:bg-muted/40 hover:border-primary/30 cursor-pointer transition-all"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Navigate focus to the linked action if found in tree
+                          const findInTree = (list: GanttItem[]): GanttItem | null => {
+                            for (const it of list) {
+                              if (it.id === otherId) return it;
+                              if (it.children) { const f = findInTree(it.children); if (f) return f; }
+                            }
+                            return null;
+                          };
+                          const target = findInTree(items);
+                          if (target) setFocusedItem(target);
+                        }}
+                      >
+                        <Badge className={`${dt.color} text-[9px] gap-1 shrink-0`}>
+                          <Icon className="h-2.5 w-2.5" /> {dt.label}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground shrink-0">{direction}</span>
+                        {other?.code && (
+                          <span className="shrink-0 inline-flex items-center h-4 px-1 rounded border border-primary/30 bg-primary/10 text-primary text-[9px] font-mono font-semibold tabular-nums">
+                            {other.code}
+                          </span>
+                        )}
+                        <p className="text-xs font-medium truncate flex-1">{other?.title ?? "Action inconnue"}</p>
                       </div>
                     );
                   })}
