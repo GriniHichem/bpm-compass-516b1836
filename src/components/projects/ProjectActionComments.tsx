@@ -26,6 +26,7 @@ interface Profile {
   nom: string;
   prenom: string;
   email: string;
+  fonction?: string | null;
 }
 
 interface Props {
@@ -96,7 +97,7 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
     if (userIds.length > 0) {
       const { data: profs } = await supabase
         .from("profiles")
-        .select("id, nom, prenom, email")
+        .select("id, nom, prenom, email, fonction")
         .in("id", userIds);
       const map: Record<string, Profile> = {};
       (profs ?? []).forEach((p: any) => { map[p.id] = p; });
@@ -169,6 +170,23 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
 
   const isEdited = (comment: Comment) => comment.updated_at !== comment.created_at;
 
+  /** Returns true if the comment author is DG or PDG (matched on profile.fonction) */
+  const isExecutiveAuthor = (userId: string) => {
+    const f = (profiles[userId]?.fonction || "").toLowerCase().trim();
+    if (!f) return false;
+    // Match standalone "dg" or "pdg" (also "directeur général" / "président")
+    return /\b(dg|pdg)\b/.test(f)
+      || /directeur\s+g[ée]n[ée]ral/.test(f)
+      || /pr[ée]sident.*directeur/.test(f);
+  };
+
+  /** Show red "Direction" badge for 48h after the comment was posted */
+  const showExecutiveBadge = (comment: Comment) => {
+    if (!isExecutiveAuthor(comment.user_id)) return false;
+    const ageHours = (Date.now() - parseISO(comment.created_at).getTime()) / 36e5;
+    return ageHours < 48;
+  };
+
   const visibleComments = comments.filter(canSeePrivate);
 
   return (
@@ -177,17 +195,30 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
         <p className="text-xs text-muted-foreground text-center py-2">Aucun commentaire</p>
       )}
 
-      {visibleComments.map(comment => (
+      {visibleComments.map(comment => {
+        const execBadge = showExecutiveBadge(comment);
+        return (
         <div
           key={comment.id}
-          className={`flex gap-2.5 ${comment.is_private ? "rounded-md border border-amber-400/40 bg-amber-500/5 p-2" : ""}`}
+          className={`flex gap-2.5 ${
+            execBadge
+              ? "rounded-md border-2 border-destructive/60 bg-destructive/5 p-2 ring-1 ring-destructive/20"
+              : comment.is_private
+                ? "rounded-md border border-amber-400/40 bg-amber-500/5 p-2"
+                : ""
+          }`}
         >
           <Avatar className="h-7 w-7 shrink-0 mt-0.5">
-            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(comment.user_id)}</AvatarFallback>
+            <AvatarFallback className={`text-[10px] ${execBadge ? "bg-destructive/15 text-destructive" : "bg-primary/10 text-primary"}`}>{getInitials(comment.user_id)}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-medium">{getDisplayName(comment.user_id)}</span>
+              {execBadge && (
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide animate-pulse">
+                  Direction · Nouveau
+                </span>
+              )}
               <span className="text-[10px] text-muted-foreground">
                 {formatDistanceToNow(parseISO(comment.created_at), { addSuffix: true, locale: fr })}
               </span>
@@ -242,7 +273,8 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
             )}
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {canComment && (
         <div className="space-y-2">

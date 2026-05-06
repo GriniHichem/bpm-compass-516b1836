@@ -153,6 +153,9 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
 
   // Confirm close action dialog
   const [confirmCloseActionId, setConfirmCloseActionId] = useState<string | null>(null);
+  // Reopen action dialog (with mandatory reason)
+  const [reopenActionId, setReopenActionId] = useState<string | null>(null);
+  const [reopenReason, setReopenReason] = useState("");
   const [historyActionId, setHistoryActionId] = useState<string | null>(null);
   const [historyActionTitle, setHistoryActionTitle] = useState("");
   const [projectHistoryOpen, setProjectHistoryOpen] = useState(false);
@@ -463,14 +466,32 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
     fetchActions();
   };
 
-  /** Reopen a closed action */
-  const reopenAction = async (actionId: string) => {
+  /** Reopen a closed action — only by the action responsible (or admin), with mandatory reason */
+  const reopenAction = async (actionId: string, reason: string) => {
     const action = actions.find(a => a.id === actionId);
-    const newAvancement = action?.multi_tasks
-      ? Math.min(action.avancement, 99) // keep calculated but cap below 100
-      : 50; // reset simple action to 50%
-    await updateAction(actionId, { statut: "en_cours", avancement: newAvancement });
-    toast.info("Action rouverte — avancement réinitialisé");
+    if (!action) return;
+    const newAvancement = action.multi_tasks
+      ? Math.min(action.avancement, 99)
+      : 50;
+    const oldStatut = action.statut;
+    const { error } = await supabase
+      .from("project_actions")
+      .update({ statut: "en_cours", avancement: newAvancement })
+      .eq("id", actionId);
+    if (error) { toast.error(error.message); return; }
+    // Log reopening with reason in project history
+    try {
+      await supabase.from("project_action_history").insert({
+        action_id: actionId,
+        user_id: user?.id ?? null,
+        field_name: "reouverture_action",
+        old_value: oldStatut,
+        new_value: `en_cours — Motif : ${reason.trim()}`,
+        entity_type: "action",
+      });
+    } catch (e) { /* ignore */ }
+    toast.info("Action rouverte — motif enregistré dans l'historique");
+    fetchActions();
   };
 
   /** Toggle multi-tasks mode */
@@ -1043,17 +1064,25 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                         <CheckCircle2 className="h-4 w-4" />
                         <span className="font-medium">Action terminée — figée</span>
                       </div>
-                      {canEdit && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs gap-1 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
-                          onClick={() => reopenAction(action.id)}
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                          Rouvrir
-                        </Button>
-                      )}
+                      {(() => {
+                        const isActionResp = !!user && (
+                          action.responsable_user_id === user.id ||
+                          action.responsable_user_id_2 === user.id ||
+                          action.responsable_user_id_3 === user.id
+                        );
+                        if (!(isActionResp || isAdmin)) return null;
+                        return (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs gap-1 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
+                            onClick={() => { setReopenActionId(action.id); setReopenReason(""); }}
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            Rouvrir
+                          </Button>
+                        );
+                      })()}
                     </div>
                   )}
 
@@ -1429,6 +1458,48 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reopen action dialog (with mandatory reason) */}
+      <Dialog open={!!reopenActionId} onOpenChange={(o) => { if (!o) { setReopenActionId(null); setReopenReason(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-primary" />
+              Rouvrir l'action
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Seul le responsable de l'action peut la rouvrir. Le motif sera enregistré dans l'historique du projet.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Motif de réouverture <span className="text-destructive">*</span></label>
+              <Textarea
+                value={reopenReason}
+                onChange={(e) => setReopenReason(e.target.value)}
+                placeholder="Expliquez pourquoi cette action doit être rouverte..."
+                rows={4}
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => { setReopenActionId(null); setReopenReason(""); }}>Annuler</Button>
+              <Button
+                size="sm"
+                disabled={!reopenReason.trim()}
+                onClick={async () => {
+                  if (!reopenActionId || !reopenReason.trim()) return;
+                  await reopenAction(reopenActionId, reopenReason.trim());
+                  setReopenActionId(null);
+                  setReopenReason("");
+                }}
+              >
+                Confirmer la réouverture
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Deadline change confirmation dialog */}
       <Dialog open={!!deadlineDialog?.open} onOpenChange={(o) => !o && setDeadlineDialog(null)}>
