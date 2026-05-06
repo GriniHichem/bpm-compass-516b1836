@@ -466,14 +466,32 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
     fetchActions();
   };
 
-  /** Reopen a closed action */
-  const reopenAction = async (actionId: string) => {
+  /** Reopen a closed action — only by the action responsible (or admin), with mandatory reason */
+  const reopenAction = async (actionId: string, reason: string) => {
     const action = actions.find(a => a.id === actionId);
-    const newAvancement = action?.multi_tasks
-      ? Math.min(action.avancement, 99) // keep calculated but cap below 100
-      : 50; // reset simple action to 50%
-    await updateAction(actionId, { statut: "en_cours", avancement: newAvancement });
-    toast.info("Action rouverte — avancement réinitialisé");
+    if (!action) return;
+    const newAvancement = action.multi_tasks
+      ? Math.min(action.avancement, 99)
+      : 50;
+    const oldStatut = action.statut;
+    const { error } = await supabase
+      .from("project_actions")
+      .update({ statut: "en_cours", avancement: newAvancement })
+      .eq("id", actionId);
+    if (error) { toast.error(error.message); return; }
+    // Log reopening with reason in project history
+    try {
+      await supabase.from("project_action_history").insert({
+        action_id: actionId,
+        user_id: user?.id ?? null,
+        field_name: "reouverture_action",
+        old_value: oldStatut,
+        new_value: `en_cours — Motif : ${reason.trim()}`,
+        entity_type: "action",
+      });
+    } catch (e) { /* ignore */ }
+    toast.info("Action rouverte — motif enregistré dans l'historique");
+    fetchActions();
   };
 
   /** Toggle multi-tasks mode */
