@@ -56,6 +56,27 @@ export default function ProjectPlanningPage() {
         });
       }
 
+      // Resolve real user names for any responsable_user_id present
+      const userIds = Array.from(new Set([
+        ...actions.flatMap((a: any) => [a.responsable_user_id, a.responsable_user_id_2, a.responsable_user_id_3]),
+        ...Object.values(tasksMap).flat().map((t: any) => t.responsable_user_id),
+      ].filter(Boolean))) as string[];
+      const userNames: Record<string, string> = {};
+      if (userIds.length > 0) {
+        const { data: profs } = await supabase.from("profiles").select("id, nom, prenom").in("id", userIds);
+        (profs ?? []).forEach((p: any) => {
+          userNames[p.id] = `${p.prenom ?? ""} ${p.nom ?? ""}`.trim() || "Utilisateur";
+        });
+      }
+
+      // Build a "Function — User" label, never raw UUIDs
+      const respLabel = (acteurId: string | null, userId: string | null): string | null => {
+        const userName = userId ? (userNames[userId] || null) : null;
+        const fonction = acteurId ? getActeurLabel(acteurId) : null;
+        if (fonction && userName) return `${fonction} — ${userName}`;
+        return fonction || userName || null;
+      };
+
       // Compute project avancement using centralized helper (consistent with list & dashboard)
       const projectAvancement = computeProjectProgress(actions as any, tasksMap);
 
@@ -74,7 +95,11 @@ export default function ProjectPlanningPage() {
           echeance: a.echeance,
           statut: a.statut,
           avancement: getActionEffectiveProgress(a, tasksMap[a.id]),
-          responsable: [getActeurLabel(a.responsable_id), getActeurLabel(a.responsable_id_2), getActeurLabel(a.responsable_id_3)].filter(Boolean).join(", "),
+          responsable: [
+            respLabel(a.responsable_id, a.responsable_user_id),
+            respLabel(a.responsable_id_2, a.responsable_user_id_2),
+            respLabel(a.responsable_id_3, a.responsable_user_id_3),
+          ].filter(Boolean).join(", "),
           poids: a.poids ?? null,
           created_at: a.created_at ?? null,
           level: "action" as const,
@@ -85,7 +110,7 @@ export default function ProjectPlanningPage() {
             echeance: t.echeance,
             statut: t.statut,
             avancement: normalizeTaskProgress(t),
-            responsable: getActeurLabel(t.responsable_id),
+            responsable: respLabel(t.responsable_id, t.responsable_user_id),
             level: "task" as const,
           })) : [],
         })),
