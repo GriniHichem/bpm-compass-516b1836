@@ -3926,6 +3926,7 @@ export type Database = {
         | "admin"
         | "acteur"
         | "super_admin"
+        | "dg"
       audit_status: "planifie" | "en_cours" | "termine" | "cloture"
       audit_type: "interne" | "externe"
       context_issue_type: "interne" | "externe"
@@ -4119,6 +4120,7 @@ export const Constants = {
         "admin",
         "acteur",
         "super_admin",
+        "dg",
       ],
       audit_status: ["planifie", "en_cours", "termine", "cloture"],
       audit_type: ["interne", "externe"],

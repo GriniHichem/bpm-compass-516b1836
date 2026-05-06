@@ -89,14 +89,15 @@ export const MODULE_LABELS: Record<AppModule, string> = {
   gestion_documentaire: "Config. documentaire",
 };
 
-export type AppRole = "super_admin" | "admin" | "rmq" | "responsable_processus" | "consultant" | "auditeur" | "acteur";
+export type AppRole = "super_admin" | "admin" | "rmq" | "dg" | "responsable_processus" | "consultant" | "auditeur" | "acteur";
 
-export const ALL_ROLES: AppRole[] = ["super_admin", "admin", "rmq", "responsable_processus", "consultant", "auditeur", "acteur"];
+export const ALL_ROLES: AppRole[] = ["super_admin", "admin", "rmq", "dg", "responsable_processus", "consultant", "auditeur", "acteur"];
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
   admin: "Admin",
   rmq: "RMQ",
+  dg: "DG (Direction Générale)",
   responsable_processus: "Resp. processus",
   consultant: "Consultant",
   auditeur: "Auditeur",
@@ -146,6 +147,32 @@ export const DEFAULT_PERMISSIONS: Record<Exclude<AppRole, "admin" | "super_admin
     journal: READ_DETAIL,
     notifications: ALL_TRUE,
     gestion_documentaire: ALL_TRUE,
+  },
+  dg: {
+    processus: READ_DETAIL,
+    cartographie: READ_DETAIL,
+    bpmn: READ_DETAIL,
+    evaluation_processus: READ_DETAIL,
+    documents: READ_DETAIL,
+    indicateurs: READ_DETAIL,
+    risques: READ_DETAIL,
+    incidents: READ_DETAIL,
+    enjeux_contexte: READ_DETAIL,
+    politique_qualite: READ_DETAIL,
+    revue_direction: READ_DETAIL,
+    revue_direction_iso: READ_DETAIL,
+    competences: READ_DETAIL,
+    satisfaction_client: READ_DETAIL,
+    fournisseurs: READ_DETAIL,
+    audits: READ_DETAIL,
+    non_conformites: READ_DETAIL,
+    actions: READ_DETAIL,
+    acteurs: READ_DETAIL,
+    utilisateurs: READ_DETAIL,
+    groupes_acteurs: READ_DETAIL,
+    journal: READ_DETAIL,
+    notifications: READ_ONLY,
+    gestion_documentaire: READ_DETAIL,
   },
   responsable_processus: {
     processus: READ_EDIT,
