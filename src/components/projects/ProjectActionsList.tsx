@@ -1494,6 +1494,77 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
         </DialogContent>
       </Dialog>
 
+      {/* Transfer responsibility dialog */}
+      <Dialog open={!!transferDialog} onOpenChange={(o) => !o && setTransferDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-primary" />
+              Transfert de responsabilité
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-lg border border-border/40 bg-muted/20 p-3 space-y-1">
+              <p className="text-xs text-muted-foreground">Action</p>
+              <p className="text-sm font-medium">{transferDialog?.actionTitle}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{transferDialog?.label} actuel(le) :</p>
+              <p className="text-xs font-medium text-foreground">
+                {respLabel(transferDialog?.currentActeurId ?? null, transferDialog?.currentUserId ?? null) || "—"}
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Nouveau responsable</label>
+              <ActeurUserSelect
+                acteurValue={transferActeurId}
+                userValue={transferUserId}
+                onActeurChange={(v) => { setTransferActeurId(v); setTransferUserId(""); }}
+                onUserChange={(v) => setTransferUserId(v)}
+                acteurs={acteurs}
+                placeholder="Sélectionner"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Motif du transfert (optionnel)</label>
+              <Textarea
+                value={transferReason}
+                onChange={(e) => setTransferReason(e.target.value)}
+                placeholder="Raison du changement de responsable..."
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => setTransferDialog(null)}>Annuler</Button>
+              <Button
+                size="sm"
+                disabled={!transferActeurId || transferActeurId === (transferDialog?.currentActeurId ?? "") && transferUserId === (transferDialog?.currentUserId ?? "")}
+                onClick={async () => {
+                  if (!transferDialog) return;
+                  const updates: Record<string, any> = {
+                    [transferDialog.fields.acteur]: transferActeurId || null,
+                    [transferDialog.fields.user]: transferUserId || null,
+                  };
+                  await updateAction(transferDialog.actionId, updates);
+                  // Log via project_action_history (optional reason in field)
+                  try {
+                    await supabase.from("project_action_history").insert({
+                      action_id: transferDialog.actionId,
+                      user_id: user?.id ?? null,
+                      field_name: `transfert_${transferDialog.fields.acteur}`,
+                      old_value: respLabel(transferDialog.currentActeurId, transferDialog.currentUserId) ?? "—",
+                      new_value: (respLabel(transferActeurId || null, transferUserId || null) ?? "—") + (transferReason.trim() ? ` — Motif : ${transferReason.trim()}` : ""),
+                    });
+                  } catch (e) { /* ignore */ }
+                  toast.success("Responsabilité transférée");
+                  setTransferDialog(null);
+                }}
+              >
+                Confirmer le transfert
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Confirm disable multi-tasks dialog */}
       <AlertDialog open={!!disableMultiDialog} onOpenChange={(o) => !o && setDisableMultiDialog(null)}>
         <AlertDialogContent>
