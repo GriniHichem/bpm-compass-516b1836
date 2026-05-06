@@ -654,7 +654,10 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   ) => {
     const acteurId = (action[fields.acteur] as string | null) ?? "";
     const userId = (action[fields.user] as string | null) ?? "";
-    const isAssigned = !!acteurId;
+    // Considered "assigned" only when BOTH the function AND a specific user are set.
+    // Otherwise the selector stays open so the user can pick a person when several
+    // profiles share the function.
+    const isAssigned = !!acteurId && !!userId;
     const canTransfer = (isResponsable || isAdmin) && isAssigned && action.statut !== "terminee";
 
     return (

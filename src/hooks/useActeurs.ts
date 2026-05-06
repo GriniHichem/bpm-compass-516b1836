@@ -20,7 +20,8 @@ export function useActeurs() {
   const getActeurLabel = (id: string | null) => {
     if (!id) return null;
     const a = acteurs.find(a => a.id === id);
-    return a ? (a.fonction || a.organisation || "Acteur") : id;
+    // Never return raw UUID — fallback to a generic label so the UI doesn't display codes
+    return a ? (a.fonction || a.organisation || "Acteur") : "Acteur";
   };
 
   return { acteurs, getActeurLabel };
