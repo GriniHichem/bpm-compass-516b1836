@@ -97,7 +97,7 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
     if (userIds.length > 0) {
       const { data: profs } = await supabase
         .from("profiles")
-        .select("id, nom, prenom, email")
+        .select("id, nom, prenom, email, fonction")
         .in("id", userIds);
       const map: Record<string, Profile> = {};
       (profs ?? []).forEach((p: any) => { map[p.id] = p; });
