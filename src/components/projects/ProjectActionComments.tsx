@@ -273,7 +273,8 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
             )}
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {canComment && (
         <div className="space-y-2">
