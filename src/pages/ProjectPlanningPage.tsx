@@ -118,7 +118,7 @@ export default function ProjectPlanningPage() {
       setGanttItems(gantt);
       setLoading(false);
     })();
-  }, [projectId]);
+  }, [projectId, acteurs]);
 
   if (loading) {
     return (
