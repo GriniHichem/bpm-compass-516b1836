@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { Plus, ChevronDown, ChevronRight, Trash2, CheckCircle2, Circle, Clock, MessageSquare, AlertTriangle, ShieldAlert, CalendarClock, History, UserPlus, X, ListTodo, Lock, RotateCcw, Pin, PinOff, EyeOff, Eye, Filter, ArrowUpDown, SlidersHorizontal, Ban, FileText, User } from "lucide-react";
 import { FilterDrawer } from "@/components/ui/filter-drawer";
 import { ProjectActionComments } from "@/components/projects/ProjectActionComments";
-import { ProjectActionHistory } from "@/components/projects/ProjectActionHistory";
+import { ProjectHistoryDialog } from "@/components/projects/ProjectHistoryDialog";
 import { ProjectActionDependencies, type Dependency } from "@/components/projects/ProjectActionDependencies";
 import { computeMultiTaskActionProgress, computeProjectProgress } from "@/lib/projectProgress";
 import { useActeurs } from "@/hooks/useActeurs";
@@ -155,6 +155,15 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   const [confirmCloseActionId, setConfirmCloseActionId] = useState<string | null>(null);
   const [historyActionId, setHistoryActionId] = useState<string | null>(null);
   const [historyActionTitle, setHistoryActionTitle] = useState("");
+  const [projectHistoryOpen, setProjectHistoryOpen] = useState(false);
+  const [projectTitle, setProjectTitle] = useState("");
+
+  useEffect(() => {
+    if (!projectId) return;
+    supabase.from("projects").select("title").eq("id", projectId).maybeSingle().then(({ data }) => {
+      if (data?.title) setProjectTitle(data.title);
+    });
+  }, [projectId]);
 
   // Transfer responsibility dialog
   const [transferDialog, setTransferDialog] = useState<{
@@ -725,9 +734,24 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
               return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] ml-1">{daysLeft}j restants</Badge>;
             })()}
           </div>
-          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={() => { fetchDeadlineLogs(); setLogsOpen(true); }}>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={() => setProjectHistoryOpen(true)} title="Historique complet du projet (actions + tâches)">
+              <History className="h-3.5 w-3.5" />
+              Historique du projet
+            </Button>
+            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={() => { fetchDeadlineLogs(); setLogsOpen(true); }}>
+              <CalendarClock className="h-3.5 w-3.5" />
+              Échéances
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!projectDeadline && actions.length > 0 && (
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={() => setProjectHistoryOpen(true)}>
             <History className="h-3.5 w-3.5" />
-            Historique
+            Historique du projet
           </Button>
         </div>
       )}
@@ -1583,12 +1607,21 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Action history dialog */}
-      <ProjectActionHistory
-        actionId={historyActionId ?? ""}
-        actionTitle={historyActionTitle}
+      {/* Action history dialog (per-action) */}
+      <ProjectHistoryDialog
         open={!!historyActionId}
         onOpenChange={(o) => !o && setHistoryActionId(null)}
+        projectId={projectId}
+        projectTitle={projectTitle}
+        initialActionId={historyActionId}
+      />
+
+      {/* Project-wide history dialog */}
+      <ProjectHistoryDialog
+        open={projectHistoryOpen}
+        onOpenChange={setProjectHistoryOpen}
+        projectId={projectId}
+        projectTitle={projectTitle}
       />
     </div>
   );
