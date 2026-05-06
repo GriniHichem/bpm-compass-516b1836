@@ -21,7 +21,7 @@ export default function ProjectPlanningPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user, role } = useAuth();
-  const { getActeurLabel } = useActeurs();
+  const { acteurs, getActeurLabel } = useActeurs();
 
   const [project, setProject] = useState<any>(null);
   const [ganttItems, setGanttItems] = useState<any[]>([]);
