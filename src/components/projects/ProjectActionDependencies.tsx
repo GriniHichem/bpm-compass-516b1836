@@ -20,6 +20,7 @@ interface ActionItem {
   id: string;
   title: string;
   statut: string;
+  code?: string;
 }
 
 const DEP_TYPES: Record<string, { label: string; icon: typeof ArrowUp; desc: string; color: string }> = {
@@ -70,7 +71,11 @@ export function ProjectActionDependencies({ projectId, actionId, actionTitle, al
     onChanged();
   };
 
-  const getActionTitle = (id: string) => allActions.find(a => a.id === id)?.title ?? "Action inconnue";
+  const getActionTitle = (id: string) => {
+    const a = allActions.find(x => x.id === id);
+    if (!a) return "Action inconnue";
+    return a.code ? `${a.code} — ${a.title}` : a.title;
+  };
 
   const availableTargets = allActions.filter(a => a.id !== actionId && !myDeps.some(d =>
     (d.source_action_id === actionId && d.target_action_id === a.id) ||
@@ -153,7 +158,7 @@ export function ProjectActionDependencies({ projectId, actionId, actionTitle, al
                     <SelectTrigger className="h-8 text-xs flex-1"><SelectValue placeholder="Choisir une action" /></SelectTrigger>
                     <SelectContent>
                       {availableTargets.map(a => (
-                        <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>
+                        <SelectItem key={a.id} value={a.id}>{a.code ? `${a.code} — ${a.title}` : a.title}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
