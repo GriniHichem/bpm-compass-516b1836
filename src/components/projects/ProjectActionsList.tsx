@@ -1097,7 +1097,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                     projectId={projectId}
                     actionId={action.id}
                     actionTitle={action.title}
-                    allActions={actions.map(a => ({ id: a.id, title: a.title, statut: a.statut }))}
+                    allActions={actions.map(a => ({ id: a.id, title: a.title, statut: a.statut, code: `A-${String(actionNumberById[a.id] ?? 0).padStart(3, "0")}` }))}
                     dependencies={dependencies}
                     onChanged={fetchActions}
                     canEdit={canEdit && !isFrozen && !isCancelled}
