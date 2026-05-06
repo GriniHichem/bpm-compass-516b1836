@@ -734,10 +734,16 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
               return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] ml-1">{daysLeft}j restants</Badge>;
             })()}
           </div>
-          <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={() => { fetchDeadlineLogs(); setLogsOpen(true); }}>
-            <History className="h-3.5 w-3.5" />
-            Historique
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={() => setProjectHistoryOpen(true)} title="Historique complet du projet (actions + tâches)">
+              <History className="h-3.5 w-3.5" />
+              Historique du projet
+            </Button>
+            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground" onClick={() => { fetchDeadlineLogs(); setLogsOpen(true); }}>
+              <CalendarClock className="h-3.5 w-3.5" />
+              Échéances
+            </Button>
+          </div>
         </div>
       )}
 
