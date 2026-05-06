@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +37,6 @@ interface Props {
 }
 
 export function ProjectCollaborators({ projectId, responsableUserId, visibility, canEdit, onUpdate }: Props) {
-  const { user } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
