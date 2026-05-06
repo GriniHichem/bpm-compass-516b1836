@@ -266,6 +266,23 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
     const children = focusedItem.children ?? [];
     const showComments = canComment && focusedItem.level === "action" && projectId;
 
+    // Build action lookup (id -> {title, code})
+    const actionLookup: Record<string, { title: string; code: string }> = {};
+    const collectActions = (list: GanttItem[]) => {
+      list.forEach(it => {
+        if (it.level === "action") {
+          const num = actionNumberById[it.id];
+          actionLookup[it.id] = { title: it.title, code: num != null ? `A-${String(num).padStart(3, "0")}` : "" };
+        }
+        if (it.children) collectActions(it.children);
+      });
+    };
+    collectActions(items);
+
+    const myDeps = focusedItem.level === "action"
+      ? dependencies.filter(d => d.source_action_id === focusedItem.id || d.target_action_id === focusedItem.id)
+      : [];
+
     return (
       <div className="h-full flex flex-col">
         {/* Sticky header */}
