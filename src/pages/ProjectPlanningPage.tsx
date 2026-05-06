@@ -40,7 +40,8 @@ export default function ProjectPlanningPage() {
       setIsAdmin(admin);
 
       const isResponsable = (data as any).responsable_user_id === user?.id || (data as any).created_by === user?.id;
-      setCanComment(admin || isResponsable || (data as any).visibility !== "private");
+      // Toute personne ayant accès au planning (lecture) peut commenter — même règle que sur la liste d'actions.
+      setCanComment(true);
 
       // Fetch actions + tasks for gantt
       const { data: actions } = await supabase.from("project_actions").select("*").eq("project_id", projectId).order("ordre");
