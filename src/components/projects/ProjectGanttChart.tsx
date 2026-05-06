@@ -247,143 +247,150 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
     const showComments = canComment && focusedItem.level === "action" && projectId;
 
     return (
-      <ScrollArea className="h-full">
-        <div className="p-4 space-y-4">
-          {/* Header */}
+      <div className="h-full flex flex-col">
+        {/* Sticky header */}
+        <div className="shrink-0 px-4 pt-4 pb-3 border-b border-border/30 bg-gradient-to-b from-muted/30 to-transparent">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
-                <Badge variant="outline" className="text-[9px] uppercase tracking-wider">
+              <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                <Badge variant="outline" className="text-[9px] uppercase tracking-wider font-semibold">
                   {focusedItem.level === "project" ? "Projet" : focusedItem.level === "action" ? "Action" : "Tâche"}
                 </Badge>
-                <Badge className={`${st.class} text-[10px]`}>{st.label}</Badge>
+                <Badge className={`${st.class} text-[10px] font-semibold`}>{st.label}</Badge>
                 {isOverdue && (
-                  <Badge className="bg-destructive/15 text-destructive text-[10px]">
+                  <Badge className="bg-destructive/15 text-destructive text-[10px] font-semibold">
                     En retard {daysLeft !== null ? `de ${Math.abs(daysLeft)}j` : ""}
                   </Badge>
                 )}
                 {!isOverdue && daysLeft !== null && daysLeft >= 0 && (
-                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px]">
+                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] font-semibold">
                     {daysLeft}j restant{daysLeft > 1 ? "s" : ""}
                   </Badge>
                 )}
               </div>
-              <h3 className="text-sm font-semibold text-foreground leading-tight">{focusedItem.title}</h3>
+              <h3 className="text-sm font-semibold text-foreground leading-snug">{focusedItem.title}</h3>
             </div>
             <button
               onClick={() => setFocusedItem(null)}
-              className="shrink-0 p-1 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+              className="shrink-0 p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+              title="Fermer"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
+        </div>
 
-          {/* Info cards */}
-          <div className="grid grid-cols-1 gap-2.5">
-            <div className="rounded-lg border border-border/30 bg-muted/20 p-3 space-y-1">
-              <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                <Calendar className="h-3 w-3" /> Période
-              </div>
-              <p className="text-xs font-medium text-foreground">
-                {focusedItem.date_debut
-                  ? new Date(focusedItem.date_debut).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
-                  : "Non défini"}
-                {" → "}
-                {focusedItem.echeance
-                  ? new Date(focusedItem.echeance).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
-                  : "Non défini"}
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-border/30 bg-muted/20 p-3 space-y-1.5">
-              <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                <Target className="h-3 w-3" /> Avancement
-              </div>
-              <div className="flex items-center gap-2">
-                <Progress value={focusedItem.avancement} className="h-2 flex-1" />
-                <span className="text-xs font-semibold text-foreground">{focusedItem.avancement}%</span>
-              </div>
-            </div>
-
-            {focusedItem.responsable && (
-              <div className="rounded-lg border border-border/30 bg-muted/20 p-3 space-y-1">
-                <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                  <User className="h-3 w-3" /> Responsable
+        <ScrollArea className="flex-1">
+          <div className="p-4 space-y-4">
+            {/* Compact info grid */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg border border-border/30 bg-muted/15 p-2.5 space-y-1 col-span-2">
+                <div className="flex items-center gap-1.5 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <Calendar className="h-3 w-3" /> Période
                 </div>
-                <p className="text-xs font-medium text-foreground">{focusedItem.responsable}</p>
+                <p className="text-xs font-medium text-foreground">
+                  {focusedItem.date_debut
+                    ? new Date(focusedItem.date_debut).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
+                    : "—"}
+                  {" → "}
+                  {focusedItem.echeance
+                    ? new Date(focusedItem.echeance).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
+                    : "—"}
+                </p>
+              </div>
+
+              <div className={`rounded-lg border border-border/30 bg-muted/15 p-2.5 space-y-1.5 ${focusedItem.poids != null ? "" : "col-span-2"}`}>
+                <div className="flex items-center gap-1.5 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <Target className="h-3 w-3" /> Avancement
+                </div>
+                <div className="flex items-center gap-2">
+                  <Progress value={focusedItem.avancement} className="h-2 flex-1" />
+                  <span className="text-xs font-bold text-foreground tabular-nums">{focusedItem.avancement}%</span>
+                </div>
+              </div>
+
+              {focusedItem.poids != null && (
+                <div className="rounded-lg border border-border/30 bg-muted/15 p-2.5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    <Weight className="h-3 w-3" /> Poids
+                  </div>
+                  <p className="text-xs font-bold text-foreground">{focusedItem.poids}%</p>
+                </div>
+              )}
+
+              {focusedItem.responsable && (
+                <div className="rounded-lg border border-border/30 bg-muted/15 p-2.5 space-y-1 col-span-2">
+                  <div className="flex items-center gap-1.5 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    <User className="h-3 w-3" /> Responsable
+                  </div>
+                  <p className="text-xs font-medium text-foreground">{focusedItem.responsable}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Children list */}
+            {children.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  {focusedItem.level === "project" ? "Actions" : "Tâches"} ({children.length})
+                </h4>
+                <div className="grid gap-1.5">
+                  {children.map(child => {
+                    const cst = STATUS_LABELS[child.statut] ?? STATUS_LABELS.planifiee;
+                    return (
+                      <div
+                        key={child.id}
+                        className="flex items-center gap-2.5 rounded-lg border border-border/20 bg-card px-3 py-2 hover:bg-muted/40 hover:border-primary/30 cursor-pointer transition-all"
+                        onClick={(e) => { e.stopPropagation(); setFocusedItem(child); }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{child.title}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {child.echeance && (
+                              <span className="text-[10px] text-muted-foreground">
+                                {new Date(child.echeance).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+                              </span>
+                            )}
+                            {child.responsable && (
+                              <span className="text-[10px] text-muted-foreground truncate">• {child.responsable}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center gap-1 w-16">
+                            <Progress value={child.avancement} className="h-1.5 flex-1" />
+                            <span className="text-[10px] font-medium text-muted-foreground w-7 text-right tabular-nums">{child.avancement}%</span>
+                          </div>
+                          <Badge className={`${cst.class} text-[9px]`}>{cst.label}</Badge>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
-            {focusedItem.poids != null && (
-              <div className="rounded-lg border border-border/30 bg-muted/20 p-3 space-y-1">
-                <div className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                  <Weight className="h-3 w-3" /> Poids
+            {/* Comments section — accessible to all read-access users */}
+            {showComments && (
+              <div className="space-y-2 pt-3 border-t border-border/30">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <MessageSquare className="h-3 w-3 text-primary" /> Commentaires
+                </h4>
+                <div className="rounded-lg border border-border/30 bg-muted/10 p-2">
+                  <ProjectActionComments
+                    actionId={focusedItem.id}
+                    canComment={canComment!}
+                    isAdmin={isAdmin ?? false}
+                    projectId={projectId}
+                    projectResponsableUserId={projectResponsableUserId}
+                    actionResponsableUserId={undefined}
+                  />
                 </div>
-                <p className="text-xs font-semibold text-foreground">{focusedItem.poids}%</p>
               </div>
             )}
           </div>
-
-          {/* Children list */}
-          {children.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                {focusedItem.level === "project" ? "Actions" : "Tâches"} ({children.length})
-              </h4>
-              <div className="grid gap-1.5 max-h-[250px] overflow-y-auto pr-1">
-                {children.map(child => {
-                  const cst = STATUS_LABELS[child.statut] ?? STATUS_LABELS.planifiee;
-                  return (
-                    <div
-                      key={child.id}
-                      className="flex items-center gap-2.5 rounded-lg border border-border/20 bg-card px-3 py-2 hover:bg-muted/30 cursor-pointer transition-colors"
-                      onClick={(e) => { e.stopPropagation(); setFocusedItem(child); }}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium truncate">{child.title}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {child.echeance && (
-                            <span className="text-[10px] text-muted-foreground">
-                              {new Date(child.echeance).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
-                            </span>
-                          )}
-                          {child.responsable && (
-                            <span className="text-[10px] text-muted-foreground">• {child.responsable}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <div className="flex items-center gap-1 w-16">
-                          <Progress value={child.avancement} className="h-1.5 flex-1" />
-                          <span className="text-[10px] font-medium text-muted-foreground w-6 text-right">{child.avancement}%</span>
-                        </div>
-                        <Badge className={`${cst.class} text-[9px]`}>{cst.label}</Badge>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Comments section */}
-          {showComments && (
-            <div className="space-y-2 pt-2 border-t border-border/30">
-              <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <MessageSquare className="h-3 w-3" /> Commentaires
-              </h4>
-              <ProjectActionComments
-                actionId={focusedItem.id}
-                canComment={canComment!}
-                isAdmin={isAdmin ?? false}
-                projectId={projectId}
-                projectResponsableUserId={projectResponsableUserId}
-                actionResponsableUserId={undefined}
-              />
-            </div>
-          )}
-        </div>
-      </ScrollArea>
+        </ScrollArea>
+      </div>
     );
   };
 
@@ -438,7 +445,7 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
   if (fullscreen) {
     return (
       <ResizablePanelGroup direction="horizontal" className="h-full">
-        <ResizablePanel defaultSize={focusedItem ? 68 : 100} minSize={40}>
+        <ResizablePanel defaultSize={focusedItem ? 62 : 100} minSize={35}>
           <div className="h-full flex flex-col overflow-hidden bg-card">
             {ganttContent}
           </div>
@@ -446,7 +453,7 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
         {focusedItem && (
           <>
             <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={32} minSize={24} maxSize={50}>
+            <ResizablePanel defaultSize={38} minSize={28} maxSize={55}>
               <div className="h-full border-l border-border/30 bg-card animate-in slide-in-from-right-4 duration-200">
                 {renderDetailPanel()}
               </div>
