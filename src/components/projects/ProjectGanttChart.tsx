@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { ChevronDown, ChevronRight, Lock, Ban, Calendar, User, Target, X, Weight, MessageSquare } from "lucide-react";
+import { ChevronDown, ChevronRight, Lock, Ban, Calendar, User, Target, X, Weight, MessageSquare, Link2, ArrowUp, ArrowDown, GitBranch, Zap } from "lucide-react";
 import { ProjectActionComments } from "./ProjectActionComments";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GanttItem {
   id: string;
