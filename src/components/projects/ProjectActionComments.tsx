@@ -26,6 +26,7 @@ interface Profile {
   nom: string;
   prenom: string;
   email: string;
+  fonction?: string | null;
 }
 
 interface Props {
