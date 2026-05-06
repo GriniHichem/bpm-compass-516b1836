@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { Plus, ChevronDown, ChevronRight, Trash2, CheckCircle2, Circle, Clock, MessageSquare, AlertTriangle, ShieldAlert, CalendarClock, History, UserPlus, X, ListTodo, Lock, RotateCcw, Pin, PinOff, EyeOff, Eye, Filter, ArrowUpDown, SlidersHorizontal, Ban, FileText, User } from "lucide-react";
 import { FilterDrawer } from "@/components/ui/filter-drawer";
 import { ProjectActionComments } from "@/components/projects/ProjectActionComments";
-import { ProjectActionHistory } from "@/components/projects/ProjectActionHistory";
+import { ProjectHistoryDialog } from "@/components/projects/ProjectHistoryDialog";
 import { ProjectActionDependencies, type Dependency } from "@/components/projects/ProjectActionDependencies";
 import { computeMultiTaskActionProgress, computeProjectProgress } from "@/lib/projectProgress";
 import { useActeurs } from "@/hooks/useActeurs";
@@ -155,6 +155,15 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   const [confirmCloseActionId, setConfirmCloseActionId] = useState<string | null>(null);
   const [historyActionId, setHistoryActionId] = useState<string | null>(null);
   const [historyActionTitle, setHistoryActionTitle] = useState("");
+  const [projectHistoryOpen, setProjectHistoryOpen] = useState(false);
+  const [projectTitle, setProjectTitle] = useState("");
+
+  useEffect(() => {
+    if (!projectId) return;
+    supabase.from("projects").select("title").eq("id", projectId).maybeSingle().then(({ data }) => {
+      if (data?.title) setProjectTitle(data.title);
+    });
+  }, [projectId]);
 
   // Transfer responsibility dialog
   const [transferDialog, setTransferDialog] = useState<{
@@ -1583,12 +1592,21 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Action history dialog */}
-      <ProjectActionHistory
-        actionId={historyActionId ?? ""}
-        actionTitle={historyActionTitle}
+      {/* Action history dialog (per-action) */}
+      <ProjectHistoryDialog
         open={!!historyActionId}
         onOpenChange={(o) => !o && setHistoryActionId(null)}
+        projectId={projectId}
+        projectTitle={projectTitle}
+        initialActionId={historyActionId}
+      />
+
+      {/* Project-wide history dialog */}
+      <ProjectHistoryDialog
+        open={projectHistoryOpen}
+        onOpenChange={setProjectHistoryOpen}
+        projectId={projectId}
+        projectTitle={projectTitle}
       />
     </div>
   );
