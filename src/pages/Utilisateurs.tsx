@@ -27,6 +27,7 @@ type UserWithRoles = {
 const allRoles = [
   { key: "admin", label: "Admin" },
   { key: "rmq", label: "RMQ" },
+  { key: "dg", label: "DG (Direction Générale)" },
   { key: "responsable_processus", label: "Resp. processus" },
   { key: "consultant", label: "Consultant" },
   { key: "auditeur", label: "Auditeur" },
