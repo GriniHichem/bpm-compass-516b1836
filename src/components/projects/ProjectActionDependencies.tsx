@@ -158,7 +158,7 @@ export function ProjectActionDependencies({ projectId, actionId, actionTitle, al
                     <SelectTrigger className="h-8 text-xs flex-1"><SelectValue placeholder="Choisir une action" /></SelectTrigger>
                     <SelectContent>
                       {availableTargets.map(a => (
-                        <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>
+                        <SelectItem key={a.id} value={a.id}>{a.code ? `${a.code} — ${a.title}` : a.title}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
