@@ -195,17 +195,30 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
         <p className="text-xs text-muted-foreground text-center py-2">Aucun commentaire</p>
       )}
 
-      {visibleComments.map(comment => (
+      {visibleComments.map(comment => {
+        const execBadge = showExecutiveBadge(comment);
+        return (
         <div
           key={comment.id}
-          className={`flex gap-2.5 ${comment.is_private ? "rounded-md border border-amber-400/40 bg-amber-500/5 p-2" : ""}`}
+          className={`flex gap-2.5 ${
+            execBadge
+              ? "rounded-md border-2 border-destructive/60 bg-destructive/5 p-2 ring-1 ring-destructive/20"
+              : comment.is_private
+                ? "rounded-md border border-amber-400/40 bg-amber-500/5 p-2"
+                : ""
+          }`}
         >
           <Avatar className="h-7 w-7 shrink-0 mt-0.5">
-            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(comment.user_id)}</AvatarFallback>
+            <AvatarFallback className={`text-[10px] ${execBadge ? "bg-destructive/15 text-destructive" : "bg-primary/10 text-primary"}`}>{getInitials(comment.user_id)}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-medium">{getDisplayName(comment.user_id)}</span>
+              {execBadge && (
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide animate-pulse">
+                  Direction · Nouveau
+                </span>
+              )}
               <span className="text-[10px] text-muted-foreground">
                 {formatDistanceToNow(parseISO(comment.created_at), { addSuffix: true, locale: fr })}
               </span>
