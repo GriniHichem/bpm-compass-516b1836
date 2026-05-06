@@ -1064,17 +1064,25 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                         <CheckCircle2 className="h-4 w-4" />
                         <span className="font-medium">Action terminée — figée</span>
                       </div>
-                      {canEdit && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs gap-1 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
-                          onClick={() => reopenAction(action.id)}
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                          Rouvrir
-                        </Button>
-                      )}
+                      {(() => {
+                        const isActionResp = !!user && (
+                          action.responsable_user_id === user.id ||
+                          action.responsable_user_id_2 === user.id ||
+                          action.responsable_user_id_3 === user.id
+                        );
+                        if (!(isActionResp || isAdmin)) return null;
+                        return (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs gap-1 border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
+                            onClick={() => { setReopenActionId(action.id); setReopenReason(""); }}
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            Rouvrir
+                          </Button>
+                        );
+                      })()}
                     </div>
                   )}
 
