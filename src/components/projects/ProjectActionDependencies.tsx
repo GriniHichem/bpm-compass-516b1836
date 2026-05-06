@@ -20,6 +20,7 @@ interface ActionItem {
   id: string;
   title: string;
   statut: string;
+  code?: string;
 }
 
 const DEP_TYPES: Record<string, { label: string; icon: typeof ArrowUp; desc: string; color: string }> = {
