@@ -87,6 +87,12 @@ export function ProjectForm({ open, onOpenChange, onSaved, editProject, canManag
     setNewResource("");
   }, [editProject, open]);
 
+  const getProfileLabel = (userId: string | null | undefined) => {
+    if (!userId) return "Aucun responsable";
+    const profile = profiles.find((p) => p.id === userId);
+    return profile ? `${profile.prenom} ${profile.nom}`.trim() || profile.email : "Utilisateur introuvable";
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -136,7 +142,6 @@ export function ProjectForm({ open, onOpenChange, onSaved, editProject, canManag
           image_url: uploadedUrl,
           objectives: objectives,
           resources_list: resourcesList,
-          responsable_user_id: responsableUserId || null,
           visibility,
         };
         const { error } = await supabase.from("projects").update(payload).eq("id", editProject.id);
@@ -286,17 +291,29 @@ export function ProjectForm({ open, onOpenChange, onSaved, editProject, canManag
           {/* Responsable */}
           <div className="space-y-1.5">
             <Label>Responsable du projet</Label>
-            <Select value={responsableUserId || "none"} onValueChange={(v) => setResponsableUserId(v === "none" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="Aucun responsable" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Aucun</SelectItem>
-                {profiles.map(p => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {`${p.prenom} ${p.nom}`.trim() || p.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {editProject ? (
+              <div className="rounded-lg border border-border/30 bg-muted/20 px-3 py-2.5">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>{getProfileLabel(responsableUserId || editProject.responsable_user_id)}</span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Ce champ est figé après la création du projet. Utilisez le transfert de responsabilité dans « Accès & Collaborateurs ».
+                </p>
+              </div>
+            ) : (
+              <Select value={responsableUserId || "none"} onValueChange={(v) => setResponsableUserId(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Aucun responsable" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun</SelectItem>
+                  {profiles.map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {`${p.prenom} ${p.nom}`.trim() || p.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* Visibility */}

@@ -3886,6 +3886,14 @@ export type Database = {
         Args: { _entity_type: string; _notif_type: string; _user_id: string }
         Returns: string
       }
+      transfer_project_responsibility: {
+        Args: {
+          _new_responsable_user_id: string
+          _project_id: string
+          _reason?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       acteur_type: "interne" | "externe"

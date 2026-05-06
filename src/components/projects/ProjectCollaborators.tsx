@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,8 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Shield, Users, Eye, EyeOff, Pencil, Trash2, Plus, Crown, Globe, Lock } from "lucide-react";
+import { Shield, Eye, Pencil, Trash2, Plus, Crown, Globe, Lock, RotateCcw } from "lucide-react";
 
 interface Profile {
   id: string;
@@ -36,12 +37,15 @@ interface Props {
 }
 
 export function ProjectCollaborators({ projectId, responsableUserId, visibility, canEdit, onUpdate }: Props) {
-  const { user } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [selectedAccess, setSelectedAccess] = useState("read");
   const [loading, setLoading] = useState(true);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferUserId, setTransferUserId] = useState("");
+  const [transferReason, setTransferReason] = useState("");
+  const [transferring, setTransferring] = useState(false);
 
   const fetchData = async () => {
     const [{ data: profs }, { data: collabs }] = await Promise.all([
@@ -58,11 +62,32 @@ export function ProjectCollaborators({ projectId, responsableUserId, visibility,
   const responsableProfile = profiles.find(p => p.id === responsableUserId);
   const collabUserIds = new Set(collaborators.map(c => c.user_id));
   const availableProfiles = profiles.filter(p => p.id !== responsableUserId && !collabUserIds.has(p.id));
+  const transferCandidates = useMemo(() => profiles.filter((p) => p.id !== responsableUserId), [profiles, responsableUserId]);
 
-  const handleChangeResponsable = async (userId: string) => {
-    const { error } = await supabase.from("projects").update({ responsable_user_id: userId === "none" ? null : userId }).eq("id", projectId);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Responsable mis à jour");
+  const handleTransferResponsable = async () => {
+    if (!transferUserId) {
+      toast.error("Sélectionnez le nouveau responsable");
+      return;
+    }
+
+    setTransferring(true);
+    const { error } = await supabase.rpc("transfer_project_responsibility", {
+      _project_id: projectId,
+      _new_responsable_user_id: transferUserId,
+      _reason: transferReason || null,
+    });
+
+    setTransferring(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("Responsabilité transférée");
+    setTransferOpen(false);
+    setTransferUserId("");
+    setTransferReason("");
     onUpdate();
   };
 
@@ -116,7 +141,8 @@ export function ProjectCollaborators({ projectId, responsableUserId, visibility,
   if (loading) return <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto" />;
 
   return (
-    <Card>
+    <>
+      <Card>
       <CardContent className="p-5 space-y-5">
         <h3 className="font-semibold flex items-center gap-2">
           <Shield className="h-4 w-4" /> Accès & Collaborateurs
@@ -141,26 +167,42 @@ export function ProjectCollaborators({ projectId, responsableUserId, visibility,
         {/* Responsable */}
         <div className="space-y-2">
           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Responsable du projet</Label>
-          {canEdit ? (
-            <Select value={responsableUserId || "none"} onValueChange={handleChangeResponsable}>
-              <SelectTrigger><SelectValue placeholder="Aucun responsable" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Aucun</SelectItem>
-                {profiles.map(p => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {`${p.prenom} ${p.nom}`.trim() || p.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : responsableProfile ? (
-            <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6">
-                <AvatarImage src={undefined} />
-                <AvatarFallback className="text-[10px]">{getInitials(responsableProfile.id)}</AvatarFallback>
-              </Avatar>
-              <span className="text-sm">{getProfileName(responsableProfile.id)}</span>
-              <Crown className="h-3.5 w-3.5 text-amber-500" />
+          {responsableProfile ? (
+            <div className="flex items-center gap-2 justify-between rounded-lg border border-border/30 bg-muted/10 px-3 py-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Avatar className="h-6 w-6">
+                  <AvatarImage src={undefined} />
+                  <AvatarFallback className="text-[10px]">{getInitials(responsableProfile.id)}</AvatarFallback>
+                </Avatar>
+                <span className="text-sm truncate">{getProfileName(responsableProfile.id)}</span>
+                <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              </div>
+              {canEdit && transferCandidates.length > 0 && (
+                <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setTransferOpen(true)}>
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Transférer
+                </Button>
+              )}
+            </div>
+          ) : canEdit ? (
+            <div className="space-y-2 rounded-lg border border-dashed border-border/40 p-3">
+              <p className="text-sm text-muted-foreground">Aucun responsable défini pour ce projet.</p>
+              <div className="flex gap-2">
+                <Select value={transferUserId || "none"} onValueChange={(v) => setTransferUserId(v === "none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Choisir un responsable" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Choisir un responsable</SelectItem>
+                    {transferCandidates.map(p => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {`${p.prenom} ${p.nom}`.trim() || p.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" onClick={handleTransferResponsable} disabled={!transferUserId || transferring}>
+                  {transferring ? "Attribution..." : "Attribuer"}
+                </Button>
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">Aucun responsable</p>
@@ -230,6 +272,47 @@ export function ProjectCollaborators({ projectId, responsableUserId, visibility,
           </div>
         )}
       </CardContent>
-    </Card>
+
+      </Card>
+
+      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Transfert de responsabilité</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Nouveau responsable</Label>
+              <Select value={transferUserId || "none"} onValueChange={(v) => setTransferUserId(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner un utilisateur" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sélectionner un utilisateur</SelectItem>
+                  {transferCandidates.map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {`${p.prenom} ${p.nom}`.trim() || p.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Motif du transfert</Label>
+              <Textarea
+                value={transferReason}
+                onChange={(e) => setTransferReason(e.target.value)}
+                rows={3}
+                placeholder="Précisez la raison si nécessaire"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setTransferOpen(false)}>Annuler</Button>
+              <Button onClick={handleTransferResponsable} disabled={!transferUserId || transferring}>
+                {transferring ? "Transfert..." : "Confirmer le transfert"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
