@@ -153,6 +153,9 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
 
   // Confirm close action dialog
   const [confirmCloseActionId, setConfirmCloseActionId] = useState<string | null>(null);
+  // Reopen action dialog (with mandatory reason)
+  const [reopenActionId, setReopenActionId] = useState<string | null>(null);
+  const [reopenReason, setReopenReason] = useState("");
   const [historyActionId, setHistoryActionId] = useState<string | null>(null);
   const [historyActionTitle, setHistoryActionTitle] = useState("");
   const [projectHistoryOpen, setProjectHistoryOpen] = useState(false);
