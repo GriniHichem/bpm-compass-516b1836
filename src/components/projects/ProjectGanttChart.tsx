@@ -201,6 +201,19 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
               {item.level === "action" && taskCount > 0 && (
                 <span className="ml-1 text-[9px] text-muted-foreground font-normal">· {taskCount} tâche{taskCount > 1 ? "s" : ""}</span>
               )}
+              {item.level === "action" && (() => {
+                const depCount = dependencies.filter(d => d.source_action_id === item.id || d.target_action_id === item.id).length;
+                return depCount > 0 ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="ml-1 inline-flex items-center gap-0.5 text-[9px] text-primary font-medium">
+                        <Link2 className="h-2.5 w-2.5" />{depCount}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">{depCount} dépendance{depCount > 1 ? "s" : ""}</TooltipContent>
+                  </Tooltip>
+                ) : null;
+              })()}
             </span>
           </div>
 
