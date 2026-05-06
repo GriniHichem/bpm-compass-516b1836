@@ -156,6 +156,19 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   const [historyActionId, setHistoryActionId] = useState<string | null>(null);
   const [historyActionTitle, setHistoryActionTitle] = useState("");
 
+  // Transfer responsibility dialog
+  const [transferDialog, setTransferDialog] = useState<{
+    actionId: string;
+    actionTitle: string;
+    fields: { acteur: "responsable_id" | "responsable_id_2" | "responsable_id_3"; user: "responsable_user_id" | "responsable_user_id_2" | "responsable_user_id_3" };
+    label: string;
+    currentActeurId: string | null;
+    currentUserId: string | null;
+  } | null>(null);
+  const [transferActeurId, setTransferActeurId] = useState<string>("");
+  const [transferUserId, setTransferUserId] = useState<string>("");
+  const [transferReason, setTransferReason] = useState("");
+
   // Filters
   const [filterStatut, setFilterStatut] = useState("all");
   const [hideTerminees, setHideTerminees] = useState(false);
