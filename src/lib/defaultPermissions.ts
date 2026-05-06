@@ -89,14 +89,15 @@ export const MODULE_LABELS: Record<AppModule, string> = {
   gestion_documentaire: "Config. documentaire",
 };
 
-export type AppRole = "super_admin" | "admin" | "rmq" | "responsable_processus" | "consultant" | "auditeur" | "acteur";
+export type AppRole = "super_admin" | "admin" | "rmq" | "dg" | "responsable_processus" | "consultant" | "auditeur" | "acteur";
 
-export const ALL_ROLES: AppRole[] = ["super_admin", "admin", "rmq", "responsable_processus", "consultant", "auditeur", "acteur"];
+export const ALL_ROLES: AppRole[] = ["super_admin", "admin", "rmq", "dg", "responsable_processus", "consultant", "auditeur", "acteur"];
 
 export const ROLE_LABELS: Record<AppRole, string> = {
   super_admin: "Super Admin",
   admin: "Admin",
   rmq: "RMQ",
+  dg: "DG (Direction Générale)",
   responsable_processus: "Resp. processus",
   consultant: "Consultant",
   auditeur: "Auditeur",
