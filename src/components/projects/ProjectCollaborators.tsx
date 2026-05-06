@@ -141,7 +141,8 @@ export function ProjectCollaborators({ projectId, responsableUserId, visibility,
   if (loading) return <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto" />;
 
   return (
-    <Card>
+    <>
+      <Card>
       <CardContent className="p-5 space-y-5">
         <h3 className="font-semibold flex items-center gap-2">
           <Shield className="h-4 w-4" /> Accès & Collaborateurs
@@ -272,45 +273,46 @@ export function ProjectCollaborators({ projectId, responsableUserId, visibility,
         )}
       </CardContent>
 
-    </Card>
+      </Card>
 
-    <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Transfert de responsabilité</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Nouveau responsable</Label>
-            <Select value={transferUserId || "none"} onValueChange={(v) => setTransferUserId(v === "none" ? "" : v)}>
-              <SelectTrigger><SelectValue placeholder="Sélectionner un utilisateur" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sélectionner un utilisateur</SelectItem>
-                {transferCandidates.map(p => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {`${p.prenom} ${p.nom}`.trim() || p.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Transfert de responsabilité</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Nouveau responsable</Label>
+              <Select value={transferUserId || "none"} onValueChange={(v) => setTransferUserId(v === "none" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Sélectionner un utilisateur" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sélectionner un utilisateur</SelectItem>
+                  {transferCandidates.map(p => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {`${p.prenom} ${p.nom}`.trim() || p.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Motif du transfert</Label>
+              <Textarea
+                value={transferReason}
+                onChange={(e) => setTransferReason(e.target.value)}
+                rows={3}
+                placeholder="Précisez la raison si nécessaire"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setTransferOpen(false)}>Annuler</Button>
+              <Button onClick={handleTransferResponsable} disabled={!transferUserId || transferring}>
+                {transferring ? "Transfert..." : "Confirmer le transfert"}
+              </Button>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>Motif du transfert</Label>
-            <Textarea
-              value={transferReason}
-              onChange={(e) => setTransferReason(e.target.value)}
-              rows={3}
-              placeholder="Précisez la raison si nécessaire"
-            />
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setTransferOpen(false)}>Annuler</Button>
-            <Button onClick={handleTransferResponsable} disabled={!transferUserId || transferring}>
-              {transferring ? "Transfert..." : "Confirmer le transfert"}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
