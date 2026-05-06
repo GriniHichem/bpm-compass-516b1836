@@ -407,6 +407,55 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
               </div>
             )}
 
+            {/* Dependencies section */}
+            {focusedItem.level === "action" && myDeps.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Link2 className="h-3 w-3 text-primary" /> Dépendances ({myDeps.length})
+                </h4>
+                <div className="grid gap-1.5">
+                  {myDeps.map(dep => {
+                    const isSource = dep.source_action_id === focusedItem.id;
+                    const otherId = isSource ? dep.target_action_id : dep.source_action_id;
+                    const other = actionLookup[otherId];
+                    const dt = DEP_TYPES[dep.dependency_type] ?? DEP_TYPES.before;
+                    const Icon = dt.icon;
+                    const direction = isSource ? "→" : "←";
+                    return (
+                      <div
+                        key={dep.id}
+                        className="flex items-center gap-2 rounded-lg border border-border/20 bg-card px-3 py-2 hover:bg-muted/40 hover:border-primary/30 cursor-pointer transition-all"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Navigate focus to the linked action if found in tree
+                          const findInTree = (list: GanttItem[]): GanttItem | null => {
+                            for (const it of list) {
+                              if (it.id === otherId) return it;
+                              if (it.children) { const f = findInTree(it.children); if (f) return f; }
+                            }
+                            return null;
+                          };
+                          const target = findInTree(items);
+                          if (target) setFocusedItem(target);
+                        }}
+                      >
+                        <Badge className={`${dt.color} text-[9px] gap-1 shrink-0`}>
+                          <Icon className="h-2.5 w-2.5" /> {dt.label}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground shrink-0">{direction}</span>
+                        {other?.code && (
+                          <span className="shrink-0 inline-flex items-center h-4 px-1 rounded border border-primary/30 bg-primary/10 text-primary text-[9px] font-mono font-semibold tabular-nums">
+                            {other.code}
+                          </span>
+                        )}
+                        <p className="text-xs font-medium truncate flex-1">{other?.title ?? "Action inconnue"}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Comments section — accessible to all read-access users */}
             {showComments && (
               <div className="space-y-2 pt-3 border-t border-border/30">
