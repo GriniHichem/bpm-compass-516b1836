@@ -170,6 +170,23 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
 
   const isEdited = (comment: Comment) => comment.updated_at !== comment.created_at;
 
+  /** Returns true if the comment author is DG or PDG (matched on profile.fonction) */
+  const isExecutiveAuthor = (userId: string) => {
+    const f = (profiles[userId]?.fonction || "").toLowerCase().trim();
+    if (!f) return false;
+    // Match standalone "dg" or "pdg" (also "directeur général" / "président")
+    return /\b(dg|pdg)\b/.test(f)
+      || /directeur\s+g[ée]n[ée]ral/.test(f)
+      || /pr[ée]sident.*directeur/.test(f);
+  };
+
+  /** Show red "Direction" badge for 48h after the comment was posted */
+  const showExecutiveBadge = (comment: Comment) => {
+    if (!isExecutiveAuthor(comment.user_id)) return false;
+    const ageHours = (Date.now() - parseISO(comment.created_at).getTime()) / 36e5;
+    return ageHours < 48;
+  };
+
   const visibleComments = comments.filter(canSeePrivate);
 
   return (
