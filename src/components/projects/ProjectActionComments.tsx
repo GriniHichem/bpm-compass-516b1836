@@ -258,20 +258,30 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
               <Send className="h-3.5 w-3.5" />
             </Button>
           </div>
-          <div className="flex items-center gap-2">
-            <Switch
-              id={`private-${actionId}`}
-              checked={isPrivate}
-              onCheckedChange={setIsPrivate}
-              className="scale-75 origin-left"
-            />
-            <Label
-              htmlFor={`private-${actionId}`}
-              className="text-[11px] text-muted-foreground flex items-center gap-1 cursor-pointer"
-            >
-              <Lock className="h-3 w-3" /> Commentaire privé
-            </Label>
-          </div>
+          {(() => {
+            const projResp = resolvedProjectResp ?? projectResponsableUserId;
+            const canMarkPrivate = isAdmin
+              || (!!user && projResp === user.id)
+              || (!!user && allActionResponsables.includes(user.id))
+              || (!!user && actionResponsableUserId === user.id);
+            if (!canMarkPrivate) return null;
+            return (
+              <div className="flex items-center gap-2">
+                <Switch
+                  id={`private-${actionId}`}
+                  checked={isPrivate}
+                  onCheckedChange={setIsPrivate}
+                  className="scale-75 origin-left"
+                />
+                <Label
+                  htmlFor={`private-${actionId}`}
+                  className="text-[11px] text-muted-foreground flex items-center gap-1 cursor-pointer"
+                >
+                  <Lock className="h-3 w-3" /> Commentaire privé (responsables uniquement)
+                </Label>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
