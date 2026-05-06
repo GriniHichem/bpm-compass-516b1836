@@ -1459,6 +1459,48 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Reopen action dialog (with mandatory reason) */}
+      <Dialog open={!!reopenActionId} onOpenChange={(o) => { if (!o) { setReopenActionId(null); setReopenReason(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-primary" />
+              Rouvrir l'action
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Seul le responsable de l'action peut la rouvrir. Le motif sera enregistré dans l'historique du projet.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Motif de réouverture <span className="text-destructive">*</span></label>
+              <Textarea
+                value={reopenReason}
+                onChange={(e) => setReopenReason(e.target.value)}
+                placeholder="Expliquez pourquoi cette action doit être rouverte..."
+                rows={4}
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => { setReopenActionId(null); setReopenReason(""); }}>Annuler</Button>
+              <Button
+                size="sm"
+                disabled={!reopenReason.trim()}
+                onClick={async () => {
+                  if (!reopenActionId || !reopenReason.trim()) return;
+                  await reopenAction(reopenActionId, reopenReason.trim());
+                  setReopenActionId(null);
+                  setReopenReason("");
+                }}
+              >
+                Confirmer la réouverture
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Deadline change confirmation dialog */}
       <Dialog open={!!deadlineDialog?.open} onOpenChange={(o) => !o && setDeadlineDialog(null)}>
         <DialogContent className="max-w-md">
