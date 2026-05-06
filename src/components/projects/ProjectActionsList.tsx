@@ -156,6 +156,19 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   const [historyActionId, setHistoryActionId] = useState<string | null>(null);
   const [historyActionTitle, setHistoryActionTitle] = useState("");
 
+  // Transfer responsibility dialog
+  const [transferDialog, setTransferDialog] = useState<{
+    actionId: string;
+    actionTitle: string;
+    fields: { acteur: "responsable_id" | "responsable_id_2" | "responsable_id_3"; user: "responsable_user_id" | "responsable_user_id_2" | "responsable_user_id_3" };
+    label: string;
+    currentActeurId: string | null;
+    currentUserId: string | null;
+  } | null>(null);
+  const [transferActeurId, setTransferActeurId] = useState<string>("");
+  const [transferUserId, setTransferUserId] = useState<string>("");
+  const [transferReason, setTransferReason] = useState("");
+
   // Filters
   const [filterStatut, setFilterStatut] = useState("all");
   const [hideTerminees, setHideTerminees] = useState(false);
@@ -608,31 +621,78 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
     fields: RespFields,
     label: string,
     onRemove?: () => void,
-  ) => (
-    <div className="relative rounded-lg border border-border/50 bg-muted/20 p-2.5 pt-2 space-y-1.5 hover:border-border transition-colors">
-      <div className="flex items-center justify-between gap-1">
-        <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</label>
-        {onRemove && (
-          <button
-            type="button"
-            onClick={onRemove}
-            className="h-4 w-4 inline-flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-            title={`Retirer ${label}`}
-          >
-            <X className="h-3 w-3" />
-          </button>
+  ) => {
+    const acteurId = (action[fields.acteur] as string | null) ?? "";
+    const userId = (action[fields.user] as string | null) ?? "";
+    const isAssigned = !!acteurId;
+    const canTransfer = (isResponsable || isAdmin) && isAssigned && action.statut !== "terminee";
+
+    return (
+      <div className="relative rounded-lg border border-border/50 bg-muted/20 p-2.5 pt-2 space-y-1.5 hover:border-border transition-colors">
+        <div className="flex items-center justify-between gap-1">
+          <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+            {label}
+            {isAssigned && <Lock className="h-2.5 w-2.5 text-muted-foreground/70" />}
+          </label>
+          <div className="flex items-center gap-1">
+            {canTransfer && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTransferDialog({
+                    actionId: action.id,
+                    actionTitle: action.title,
+                    fields,
+                    label,
+                    currentActeurId: acteurId || null,
+                    currentUserId: userId || null,
+                  });
+                  setTransferActeurId(acteurId || "");
+                  setTransferUserId(userId || "");
+                  setTransferReason("");
+                }}
+                className="h-4 w-4 inline-flex items-center justify-center rounded text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                title={`Transférer ${label}`}
+              >
+                <RotateCcw className="h-3 w-3" />
+              </button>
+            )}
+            {onRemove && !isAssigned && (
+              <button
+                type="button"
+                onClick={onRemove}
+                className="h-4 w-4 inline-flex items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                title={`Retirer ${label}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        </div>
+        {isAssigned ? (
+          <div className="rounded-md bg-background/80 border border-border/40 px-2 py-1.5 text-xs">
+            <div className="font-medium text-foreground">
+              {respLabel(acteurId, userId) || "—"}
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              {(isResponsable || isAdmin)
+                ? "Figé — utilisez le transfert pour changer"
+                : "Champ figé après création"}
+            </div>
+          </div>
+        ) : (
+          <ActeurUserSelect
+            acteurValue={acteurId}
+            userValue={userId}
+            onActeurChange={(v) => updateAction(action.id, { [fields.acteur]: v || null, [fields.user]: null })}
+            onUserChange={(v) => updateAction(action.id, { [fields.user]: v || null })}
+            acteurs={acteurs}
+            placeholder="Assigner"
+          />
         )}
       </div>
-      <ActeurUserSelect
-        acteurValue={(action[fields.acteur] as string | null) ?? ""}
-        userValue={(action[fields.user] as string | null) ?? ""}
-        onActeurChange={(v) => updateAction(action.id, { [fields.acteur]: v || null, [fields.user]: null })}
-        onUserChange={(v) => updateAction(action.id, { [fields.user]: v || null })}
-        acteurs={acteurs}
-        placeholder="Assigner"
-      />
-    </div>
-  );
+    );
+  };
 
   // Compact label combining function + real user name for read-only displays.
   // If the function has no clear name, falls back to just showing the user name.
@@ -1430,6 +1490,77 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                 </div>
               ))
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer responsibility dialog */}
+      <Dialog open={!!transferDialog} onOpenChange={(o) => !o && setTransferDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-primary" />
+              Transfert de responsabilité
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-lg border border-border/40 bg-muted/20 p-3 space-y-1">
+              <p className="text-xs text-muted-foreground">Action</p>
+              <p className="text-sm font-medium">{transferDialog?.actionTitle}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{transferDialog?.label} actuel(le) :</p>
+              <p className="text-xs font-medium text-foreground">
+                {respLabel(transferDialog?.currentActeurId ?? null, transferDialog?.currentUserId ?? null) || "—"}
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Nouveau responsable</label>
+              <ActeurUserSelect
+                acteurValue={transferActeurId}
+                userValue={transferUserId}
+                onActeurChange={(v) => { setTransferActeurId(v); setTransferUserId(""); }}
+                onUserChange={(v) => setTransferUserId(v)}
+                acteurs={acteurs}
+                placeholder="Sélectionner"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Motif du transfert (optionnel)</label>
+              <Textarea
+                value={transferReason}
+                onChange={(e) => setTransferReason(e.target.value)}
+                placeholder="Raison du changement de responsable..."
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => setTransferDialog(null)}>Annuler</Button>
+              <Button
+                size="sm"
+                disabled={!transferActeurId || transferActeurId === (transferDialog?.currentActeurId ?? "") && transferUserId === (transferDialog?.currentUserId ?? "")}
+                onClick={async () => {
+                  if (!transferDialog) return;
+                  const updates: Record<string, any> = {
+                    [transferDialog.fields.acteur]: transferActeurId || null,
+                    [transferDialog.fields.user]: transferUserId || null,
+                  };
+                  await updateAction(transferDialog.actionId, updates);
+                  // Log via project_action_history (optional reason in field)
+                  try {
+                    await supabase.from("project_action_history").insert({
+                      action_id: transferDialog.actionId,
+                      user_id: user?.id ?? null,
+                      field_name: `transfert_${transferDialog.fields.acteur}`,
+                      old_value: respLabel(transferDialog.currentActeurId, transferDialog.currentUserId) ?? "—",
+                      new_value: (respLabel(transferActeurId || null, transferUserId || null) ?? "—") + (transferReason.trim() ? ` — Motif : ${transferReason.trim()}` : ""),
+                    });
+                  } catch (e) { /* ignore */ }
+                  toast.success("Responsabilité transférée");
+                  setTransferDialog(null);
+                }}
+              >
+                Confirmer le transfert
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
