@@ -60,9 +60,28 @@ const STATUS_LABELS: Record<string, { label: string; class: string }> = {
 function addDays(d: Date, n: number) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
 function diffDays(a: Date, b: Date) { return Math.ceil((b.getTime() - a.getTime()) / 86400000); }
 
+const DEP_TYPES: Record<string, { label: string; icon: typeof ArrowUp; color: string }> = {
+  before: { label: "Avant", icon: ArrowUp, color: "bg-blue-500/15 text-blue-700 dark:text-blue-400" },
+  after: { label: "Après", icon: ArrowDown, color: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400" },
+  parallel: { label: "Parallèle", icon: GitBranch, color: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
+  exclusive: { label: "Exclusive", icon: Zap, color: "bg-purple-500/15 text-purple-700 dark:text-purple-400" },
+};
+
 export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, projectId, projectResponsableUserId }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [focusedItem, setFocusedItem] = useState<GanttItem | null>(null);
+  const [dependencies, setDependencies] = useState<Array<{ id: string; source_action_id: string; target_action_id: string; dependency_type: string }>>([]);
+
+  useEffect(() => {
+    if (!projectId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("project_action_dependencies" as any)
+        .select("id, source_action_id, target_action_id, dependency_type")
+        .eq("project_id", projectId);
+      if (data) setDependencies(data as any);
+    })();
+  }, [projectId]);
 
   const { startDate, endDate, totalDays, months } = useMemo(() => {
     let minD = new Date();
