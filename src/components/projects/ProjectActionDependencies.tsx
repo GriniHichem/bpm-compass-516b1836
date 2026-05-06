@@ -71,7 +71,11 @@ export function ProjectActionDependencies({ projectId, actionId, actionTitle, al
     onChanged();
   };
 
-  const getActionTitle = (id: string) => allActions.find(a => a.id === id)?.title ?? "Action inconnue";
+  const getActionTitle = (id: string) => {
+    const a = allActions.find(x => x.id === id);
+    if (!a) return "Action inconnue";
+    return a.code ? `${a.code} — ${a.title}` : a.title;
+  };
 
   const availableTargets = allActions.filter(a => a.id !== actionId && !myDeps.some(d =>
     (d.source_action_id === actionId && d.target_action_id === a.id) ||
