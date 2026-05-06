@@ -32,11 +32,12 @@ interface Props {
   actionId: string;
   canComment: boolean;
   isAdmin: boolean;
+  projectId?: string;
   projectResponsableUserId?: string | null;
   actionResponsableUserId?: string | null;
 }
 
-export function ProjectActionComments({ actionId, canComment, isAdmin, projectResponsableUserId, actionResponsableUserId }: Props) {
+export function ProjectActionComments({ actionId, canComment, isAdmin, projectId, projectResponsableUserId, actionResponsableUserId }: Props) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
@@ -45,13 +46,39 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectRe
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [allActionResponsables, setAllActionResponsables] = useState<string[]>([]);
+  const [resolvedProjectResp, setResolvedProjectResp] = useState<string | null>(projectResponsableUserId ?? null);
+
+  useEffect(() => {
+    (async () => {
+      let pid = projectId;
+      if (!pid) {
+        const { data: act } = await supabase
+          .from("project_actions")
+          .select("project_id")
+          .eq("id", actionId)
+          .maybeSingle();
+        pid = (act as any)?.project_id;
+      }
+      if (!pid) return;
+      const [{ data: proj }, { data: acts }] = await Promise.all([
+        supabase.from("projects").select("responsable_user_id").eq("id", pid).maybeSingle(),
+        supabase.from("project_actions").select("responsable_user_id").eq("project_id", pid),
+      ]);
+      setResolvedProjectResp(((proj as any)?.responsable_user_id) ?? null);
+      const ids = ((acts ?? []) as any[]).map(a => a.responsable_user_id).filter(Boolean) as string[];
+      setAllActionResponsables([...new Set(ids)]);
+    })();
+  }, [actionId, projectId]);
 
   const canSeePrivate = (comment: Comment) => {
     if (!comment.is_private) return true;
     if (!user) return false;
     if (isAdmin) return true;
     if (comment.user_id === user.id) return true;
-    if (projectResponsableUserId && user.id === projectResponsableUserId) return true;
+    const projResp = resolvedProjectResp ?? projectResponsableUserId;
+    if (projResp && user.id === projResp) return true;
+    if (allActionResponsables.includes(user.id)) return true;
     if (actionResponsableUserId && user.id === actionResponsableUserId) return true;
     return false;
   };
