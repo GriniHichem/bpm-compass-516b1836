@@ -389,7 +389,7 @@ export default function ProjectDetail() {
             <ProjectActionsList
               projectId={projectId!}
               projectDeadline={project.date_fin}
-              canEdit={canEdit}
+              canEdit={isAdmin || isResponsable}
               canDelete={canDelete}
               canReadDetail={canReadDetail}
               canComment={canComment}
