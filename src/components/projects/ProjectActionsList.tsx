@@ -1309,6 +1309,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                           const TaskIcon = ts.icon;
                           const taskDateStatus = getDateStatus(task.echeance, projectDeadline, task.statut);
                           const taskFrozen = isFrozen || task.statut === "termine";
+                          const taskEditable = canEditTask(task, action);
                           return (
                             <div key={task.id} className={`flex items-center gap-2 rounded-lg border bg-background px-3 py-2 group ${
                               taskFrozen && task.statut === "termine" ? "border-emerald-500/20 bg-emerald-50/5" :
@@ -1316,7 +1317,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                               taskDateStatus.status === "exceeds" ? "border-orange-400/30" :
                               "border-border/30"
                             }`}>
-                              {canEdit && !isFrozen ? (
+                              {taskEditable && !isFrozen ? (
                                 task.statut === "termine" ? (
                                   // Terminated task — icon click reopens it
                                   <button
