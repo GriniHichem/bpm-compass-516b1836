@@ -1348,7 +1348,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                               <span className={`text-sm flex-1 ${task.statut === "termine" ? "text-muted-foreground" : ""}`}>
                                 {task.title}
                               </span>
-                              {canEdit && !isFrozen && task.statut !== "termine" && (
+                              {taskEditable && !isFrozen && task.statut !== "termine" && (
                                 <TaskRespCompact
                                   acteurId={task.responsable_id}
                                   userId={task.responsable_user_id}
@@ -1356,7 +1356,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                                   onChange={(acteurId, userId) => updateTask(task.id, { responsable_id: acteurId, responsable_user_id: userId })}
                                 />
                               )}
-                              {(!canEdit || isFrozen || task.statut === "termine") && task.responsable_id && (() => {
+                              {(!taskEditable || isFrozen || task.statut === "termine") && task.responsable_id && (() => {
                                 const userName = task.responsable_user_id ? formatRespUserName(task.responsable_user_id) : null;
                                 const fonction = getActeurLabel(task.responsable_id);
                                 const display = userName || fonction;
