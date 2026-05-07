@@ -122,12 +122,12 @@ interface Props {
   isAdmin?: boolean;
   /** Si true, l'utilisateur n'a pas l'édition complète mais peut modifier ses propres actions/tâches uniquement. */
   restrictedWrite?: boolean;
-  /** acteur_id du profil courant (pour matcher responsable_id). */
+  /** Conservé pour compatibilité d'interface ; non utilisé dans la règle stricte actuelle. */
   currentActeurId?: string | null;
   onProgressChange: (avancement: number) => void;
 }
 
-export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDelete: _canDelete, canReadDetail = true, canComment = false, isResponsable = false, isAdmin = false, restrictedWrite = false, currentActeurId = null, onProgressChange }: Props) {
+export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDelete: _canDelete, canReadDetail = true, canComment = false, isResponsable = false, isAdmin = false, restrictedWrite = false, currentActeurId: _currentActeurId = null, onProgressChange }: Props) {
   // Suppression d'actions/tâches désactivée pour tous les rôles : intégrité du plan
   const canDelete = false;
   const { user } = useAuth();
