@@ -11,7 +11,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, Trash2, Calendar, Users, Network, FileText, Target, History, CalendarClock, Crown, Globe, Lock, CalendarRange } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, Calendar, Users, Network, FileText, Target, History, CalendarClock, Crown, Globe, Lock, CalendarRange, Archive, ArchiveRestore } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ProjectCollaborators } from "@/components/projects/ProjectCollaborators";
 import { ProjectForm } from "@/components/projects/ProjectForm";
 import { ProjectActionsList } from "@/components/projects/ProjectActionsList";
@@ -30,6 +31,7 @@ interface Project {
   date_debut: string | null;
   date_fin: string | null;
   created_by: string | null;
+  created_at: string;
   objectives: string[];
   resources_list: string[];
   responsable_user_id: string | null;
@@ -79,8 +81,12 @@ export default function ProjectDetail() {
   // Édition restreinte : peut modifier uniquement les actions/tâches dont il est responsable
   const canEditOwn = canEditAll || (myCollabLevel === "restricted_write");
   const canEdit = canEditAll; // legacy: utilisé pour les boutons globaux (création)
-  // Seul le responsable du projet et l'admin peuvent supprimer
-  const canDelete = isAdmin || isResponsable;
+  // Archivage : Admin/RMQ ou Responsable
+  const canArchive = isAdmin || isResponsable;
+  // Suppression définitive : Admin/RMQ uniquement, dans les 7 jours suivant la création
+  const projectAgeMs = project ? Date.now() - new Date(project.created_at).getTime() : 0;
+  const withinDeleteWindow = projectAgeMs < 7 * 24 * 3600 * 1000;
+  const canDelete = isAdmin && withinDeleteWindow;
   const canComment = canRead && !!user;
 
   const fetchProject = async () => {
@@ -184,6 +190,22 @@ export default function ProjectDetail() {
     navigate("/actions");
   };
 
+  const handleArchive = async () => {
+    if (!projectId) return;
+    const { error } = await supabase.from("projects").update({ statut: "archive" }).eq("id", projectId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Projet archivé");
+    fetchProject();
+  };
+
+  const handleUnarchive = async () => {
+    if (!projectId) return;
+    const { error } = await supabase.from("projects").update({ statut: "en_cours" }).eq("id", projectId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Projet désarchivé");
+    fetchProject();
+  };
+
   if (loading) {
     return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   }
@@ -230,24 +252,69 @@ export default function ProjectDetail() {
                   <Pencil className="h-3.5 w-3.5 mr-1" /> Modifier
                 </Button>
               )}
-              {canDelete && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-destructive border-destructive/30">
-                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Supprimer
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Supprimer ce projet ?</AlertDialogTitle>
-                      <AlertDialogDescription>Le projet et toutes ses actions et tâches seront supprimés définitivement.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Annuler</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Supprimer</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+              {canArchive && (
+                project.statut === "archive" ? (
+                  <Button variant="outline" size="sm" onClick={handleUnarchive}>
+                    <ArchiveRestore className="h-3.5 w-3.5 mr-1" /> Désarchiver
+                  </Button>
+                ) : (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Archive className="h-3.5 w-3.5 mr-1" /> Archiver
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Archiver ce projet ?</AlertDialogTitle>
+                        <AlertDialogDescription>Le projet sera masqué de la liste principale. Vous pourrez le retrouver via le filtre « Archivé » et le restaurer à tout moment.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleArchive}>Archiver</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )
+              )}
+              {isAdmin && (
+                canDelete ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="text-destructive border-destructive/30">
+                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Supprimer
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Supprimer définitivement ce projet ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Cette action est irréversible : projet, actions, tâches et historique seront supprimés.
+                          La suppression définitive n'est autorisée que durant les 7 jours suivant la création. Au-delà, seule l'archivage est possible.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Supprimer</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span tabIndex={0}>
+                          <Button variant="outline" size="sm" disabled className="text-destructive/50 border-destructive/20">
+                            <Trash2 className="h-3.5 w-3.5 mr-1" /> Supprimer
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Suppression possible uniquement durant les 7 jours suivant la création. Utilisez l'archivage.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )
               )}
             </div>
           </div>

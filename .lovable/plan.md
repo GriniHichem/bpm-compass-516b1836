@@ -1,116 +1,80 @@
 ## Objectif
 
-Ajouter un troisième niveau d'accès aux **Plans d'action** d'un projet, à mi-chemin entre lecture seule et écriture complète :
+Restreindre fortement la suppression dans le module Projets / Plan d'action et introduire l'archivage comme alternative douce.
 
-> **Écriture limitée** — l'utilisateur peut modifier **uniquement les actions (et leurs tâches)** dans lesquelles il est désigné comme **responsable** (responsable_id / responsable_user_id sur les 3 slots, ou responsable d'une tâche enfant).
+## Nouvelles règles
 
-## Logique fonctionnelle
+### 1. Plan d'action (actions & tâches dans `ProjectActionsList`)
+- **Suppression d'une action ou d'une tâche** : retirée pour **tous les acteurs** (y compris Admin, RMQ, Responsable, write, restricted_write).
+- Les boutons "Supprimer" sur les lignes d'action et de tâche disparaissent complètement.
+- Justification : intégrité du plan ; toute action erronée doit être marquée annulée/clôturée, pas supprimée.
 
-### Nouveau niveau d'accès `restricted_write`
+### 2. Projet (entité `projects`)
+Deux opérations distinctes :
 
-Trois niveaux sur `project_collaborators.access_level` :
+| Opération | Qui ? | Condition |
+|-----------|-------|-----------|
+| **Supprimer définitivement** | Admin / RMQ uniquement | Projet créé il y a **moins de 7 jours** (`now() - created_at < 7 days`) |
+| **Archiver** (statut → `archive`) | Admin / RMQ **ou** Responsable du projet | Toujours possible, à tout moment |
+| **Désarchiver** (statut → `en_cours`) | Admin / RMQ **ou** Responsable | Toujours possible |
 
+- Si un Admin tente de supprimer un projet > 7 jours : bouton désactivé avec tooltip explicatif → propose l'archivage.
+- L'archivage **masque** le projet de la liste principale (déjà géré : `statut !== "archive"` côté affichage par défaut).
+- Filtre "Archivé" déjà présent dans `Actions.tsx` permet de retrouver les projets archivés.
 
-| Niveau                         | Lecture détail | Édition actions                 | Édition tâches                                                     | Création/suppression |
-| ------------------------------ | -------------- | ------------------------------- | ------------------------------------------------------------------ | -------------------- |
-| `read`                         | ✅ toutes       | ❌                               | ❌                                                                  | ❌                    |
-| `restricted_write` *(nouveau)* | ✅ toutes       | ✅ **uniquement si responsable** | ✅ **uniquement si responsable de la tâche ou de l'action parente** | ❌ (jamais)           |
-| `write`                        | ✅ toutes       | ✅ toutes                        | ✅ toutes                                                           | ❌                    |
+## Impacts code
 
+### `src/components/projects/ProjectActionsList.tsx`
+- Supprimer les boutons "Supprimer" sur actions et tâches (et leurs `AlertDialog` associés).
+- Retirer la prop `canDelete` ou l'ignorer pour les lignes d'action/tâche.
 
-Le **responsable du projet** et les **Admin/RMQ** gardent l'accès complet (inchangé).
+### `src/pages/ProjectDetail.tsx`
+- Ajouter `canArchive = isAdmin || isResponsable`.
+- Ajouter `canHardDelete = isAdmin && (Date.now() - new Date(project.created_at).getTime() < 7*24*3600*1000)`.
+- Charger `created_at` du projet (ajouter au `select` et à l'interface `Project`).
+- Remplacer le bloc actuel "Supprimer" :
+  - Bouton **Archiver / Désarchiver** (visible si `canArchive`) → met à jour `statut`.
+  - Bouton **Supprimer** (visible si `isAdmin`) :
+    - Activé seulement si `canHardDelete`.
+    - Si désactivé : tooltip « Suppression possible uniquement durant les 7 jours suivant la création. Utilisez l'archivage. »
+- Ajuster le `AlertDialog` de suppression : message rappelle la règle des 7 jours.
+- Continuer de passer `canDelete={false}` (ou retirer) à `ProjectActionsList`.
 
-### Règle "responsable d'une action"
+### `src/pages/Actions.tsx`
+- Pour la liste de projets : appliquer les mêmes règles si un bouton supprimer existe sur les cartes (à vérifier dans `ProjectCard`).
+- `handleDeleteLegacy` (actions correctives legacy) : non impacté par cette demande, conservé tel quel.
 
-Un utilisateur est considéré responsable d'une action si **au moins une** de ces conditions est vraie :
+### Base de données
+Sécuriser côté backend pour empêcher tout contournement :
 
-- `responsable_user_id`, `responsable_user_id_2` ou `responsable_user_id_3` = son `user_id`
-- son `acteur_id` (lien profil → acteur) correspond à `responsable_id`, `responsable_id_2` ou `responsable_id_3`
+```sql
+-- Trigger BEFORE DELETE sur projects
+CREATE OR REPLACE FUNCTION public.guard_project_delete()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  -- Bypass si super_admin
+  IF public.has_role(auth.uid(), 'super_admin') THEN RETURN OLD; END IF;
+  -- Doit être admin ou rmq
+  IF NOT (public.has_role(auth.uid(), 'admin') OR public.has_role(auth.uid(), 'rmq')) THEN
+    RAISE EXCEPTION 'Seul un administrateur peut supprimer un projet';
+  END IF;
+  -- Et créé il y a moins de 7 jours
+  IF OLD.created_at < now() - interval '7 days' THEN
+    RAISE EXCEPTION 'Suppression interdite : projet créé il y a plus de 7 jours. Utilisez l''archivage.';
+  END IF;
+  RETURN OLD;
+END;
+$$;
 
-Idem pour les tâches (`responsable_user_id` ou `responsable_id`).
-
-### Effets visibles dans l'UI
-
-Pour un utilisateur en `restricted_write` :
-
-1. **Liste des actions** : badge discret "Mes actions" sur les lignes éditables ; cadenas grisé sur les autres.
-2. **Boutons d'édition** (statut, avancement, échéance, responsables, description) : actifs seulement sur les actions/tâches assignées ; désactivés ailleurs avec un tooltip *"Vous ne pouvez modifier que les actions dont vous êtes responsable"*.
-3. **Boutons "Ajouter action / tâche / supprimer"** : masqués.
-4. **Filtre rapide** "Mes actions uniquement" pré-coché (optionnel).
-5. **Gestion des collaborateurs** (`ProjectCollaborators`) : nouveau choix dans le `Select` d'access level avec libellé **"Écriture limitée — uniquement ses actions"**.
-
-### Sécurité (back-end)
-
-Mise à jour des **policies RLS** sur `project_actions` et `project_tasks` :
-
-- `UPDATE` autorisé si :
-  - admin / rmq / super_admin **OU**
-  - responsable du projet **OU**
-  - collaborateur `write` **OU**
-  - collaborateur `restricted_write` **ET** utilisateur listé comme responsable de la ligne (ou de l'action parente pour une tâche)
-- `INSERT` / `DELETE` : inchangés (jamais autorisés en `restricted_write`).
-
-Création d'une fonction SECURITY DEFINER `is_action_responsible(_action_id, _user_id)` et `is_task_responsible(_task_id, _user_id)` pour éviter la récursion RLS.
-
-## Détails techniques
-
-### 1. Migration SQL
-
-```text
-- Pas de changement de schéma : la colonne access_level reste TEXT.
-- Ajout (idempotent) d'un CHECK : access_level IN ('read','restricted_write','write')
-- Création des fonctions :
-    public.is_action_responsible(_action_id uuid, _user_id uuid) RETURNS bool
-    public.is_task_responsible(_task_id uuid, _user_id uuid) RETURNS bool
-  Elles vérifient les 3 slots responsable_user_id + jointure profiles.acteur_id
-  vs responsable_id sur project_actions / project_tasks.
-- Remplacement des policies UPDATE existantes sur project_actions et project_tasks
-  pour intégrer la branche restricted_write.
+DROP TRIGGER IF EXISTS guard_project_delete_trg ON public.projects;
+CREATE TRIGGER guard_project_delete_trg
+BEFORE DELETE ON public.projects
+FOR EACH ROW EXECUTE FUNCTION public.guard_project_delete();
 ```
 
-### 2. Front-end
+Migration idempotente (`CREATE OR REPLACE`, `DROP TRIGGER IF EXISTS`) → conforme au standard self-hosting.
 
-`**ProjectDetail.tsx**` — calcul `canEdit` enrichi :
-
-```text
-const myCollabLevel = myCollab?.access_level;  // 'read' | 'restricted_write' | 'write'
-const canEditAll = isAdmin || isResponsable || myCollabLevel === 'write' || (!isPrivate && baseCanEdit);
-const canEditOwn = canEditAll || myCollabLevel === 'restricted_write';
-```
-
-Passage de deux props à `ProjectActionsList` : `canEditAll`, `canEditOwn` + `currentUserId`, `currentActeurId`.
-
-`**ProjectActionsList.tsx**` — helper :
-
-```text
-const isMine = (a) =>
-  [a.responsable_user_id, a.responsable_user_id_2, a.responsable_user_id_3].includes(userId)
-  || [a.responsable_id, a.responsable_id_2, a.responsable_id_3].includes(myActeurId);
-
-const canEditAction = (a) => canEditAll || (canEditOwn && isMine(a));
-const canEditTask   = (t, parent) => canEditAll || (canEditOwn && (isTaskMine(t) || isMine(parent)));
-```
-
-Tous les `disabled` / rendu conditionnel des boutons utilisent `canEditAction(a)` au lieu de `canEdit`.
-
-`**ProjectCollaborators.tsx**` — ajouter l'option dans le Select avec description en sous-texte.
-
-### 3. Cohérence existante
-
-- `canDelete` reste basé sur Admin/RMQ + Responsable projet (inchangé).
-- Les commentaires : `canComment` reste lié à la lecture (inchangé).
-- L'historique d'audit (`log_project_action_changes`) continue de tracer toute modification.
-
-## Hors-scope
-
-- Pas de migration des données existantes : tous les collaborateurs `read`/`write` actuels gardent leur niveau.
-- Pas de modification du module Projets en dehors de l'onglet Actions/Tâches.
-- Pas de changement sur le Gantt (lecture seule pour tous, déjà le cas).
-
-## Livrables
-
-1. Migration SQL (fonctions + policies + check constraint).
-2. `ProjectDetail.tsx` : calcul des deux niveaux + props.
-3. `ProjectActionsList.tsx` : helpers `isMine`, `canEditAction`, `canEditTask` + application sur tous les contrôles d'édition.
-4. `ProjectCollaborators.tsx` : option "Écriture limitée" dans le Select.
-5. Badge UI "Mes actions" et tooltip de blocage.
+## Hors scope
+- Pas de modification des règles RLS existantes sur `project_actions` / `project_tasks` (déjà OK pour la lecture/écriture).
+- Pas de suppression du bouton supprimer sur les actions correctives legacy (`actions` table).
+- Pas de notification automatique lors d'archivage (peut être ajouté plus tard).
