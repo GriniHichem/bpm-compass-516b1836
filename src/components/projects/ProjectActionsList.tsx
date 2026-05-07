@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { Plus, ChevronDown, ChevronRight, Trash2, CheckCircle2, Circle, Clock, MessageSquare, AlertTriangle, ShieldAlert, CalendarClock, History, UserPlus, X, ListTodo, Lock, RotateCcw, Pin, PinOff, EyeOff, Eye, Filter, ArrowUpDown, SlidersHorizontal, Ban, FileText, User } from "lucide-react";
+import { Plus, ChevronDown, ChevronRight, Trash2, CheckCircle2, Circle, Clock, MessageSquare, AlertTriangle, ShieldAlert, CalendarClock, History, UserPlus, X, ListTodo, Lock, RotateCcw, Pin, PinOff, EyeOff, Eye, Filter, ArrowUpDown, SlidersHorizontal, Ban, FileText, User, Pencil } from "lucide-react";
 import { FilterDrawer } from "@/components/ui/filter-drawer";
 import { ProjectActionComments } from "@/components/projects/ProjectActionComments";
 import { ProjectHistoryDialog } from "@/components/projects/ProjectHistoryDialog";
@@ -120,11 +120,33 @@ interface Props {
   canComment?: boolean;
   isResponsable?: boolean;
   isAdmin?: boolean;
+  /** Si true, l'utilisateur n'a pas l'édition complète mais peut modifier ses propres actions/tâches uniquement. */
+  restrictedWrite?: boolean;
+  /** acteur_id du profil courant (pour matcher responsable_id). */
+  currentActeurId?: string | null;
   onProgressChange: (avancement: number) => void;
 }
 
-export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDelete, canReadDetail = true, canComment = false, isResponsable = false, isAdmin = false, onProgressChange }: Props) {
+export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDelete, canReadDetail = true, canComment = false, isResponsable = false, isAdmin = false, restrictedWrite = false, currentActeurId = null, onProgressChange }: Props) {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
+
+  // Détermine si l'utilisateur courant est responsable d'une action (3 slots user + 3 slots acteur)
+  const isMyAction = (a: { responsable_id: string | null; responsable_id_2: string | null; responsable_id_3: string | null; responsable_user_id: string | null; responsable_user_id_2: string | null; responsable_user_id_3: string | null; }) => {
+    if (!userId) return false;
+    if ([a.responsable_user_id, a.responsable_user_id_2, a.responsable_user_id_3].some(v => v && v === userId)) return true;
+    if (currentActeurId && [a.responsable_id, a.responsable_id_2, a.responsable_id_3].some(v => v && v === currentActeurId)) return true;
+    return false;
+  };
+  const isMyTask = (t: { responsable_id: string | null; responsable_user_id: string | null; }) => {
+    if (!userId) return false;
+    if (t.responsable_user_id && t.responsable_user_id === userId) return true;
+    if (currentActeurId && t.responsable_id && t.responsable_id === currentActeurId) return true;
+    return false;
+  };
+  const canEditAction = (a: ProjectAction) => canEdit || (restrictedWrite && isMyAction(a));
+  const canEditTask = (t: ProjectTask, parent?: ProjectAction) => canEdit || (restrictedWrite && (isMyTask(t) || (parent ? isMyAction(parent) : false)));
+
   const [actions, setActions] = useState<ProjectAction[]>([]);
   const [tasksMap, setTasksMap] = useState<Record<string, ProjectTask[]>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -933,6 +955,8 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
         const isFrozen = action.statut === "terminee";
         const isBlocked = action.statut === "bloquee" || isBlockedByDeps(action.id);
         const isCancelled = action.statut === "annulee";
+        const actionEditable = canEditAction(action);
+        const mineBadge = restrictedWrite && !canEdit && actionEditable;
 
         const StatusIcon = st.icon ?? Circle;
         const stripeColor = action.pinned ? "bg-primary" : st.stripe;
@@ -1002,6 +1026,17 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                         <Badge className="bg-muted text-muted-foreground border text-[9px] gap-1 h-4 line-through">
                           Annulée
                         </Badge>
+                      )}
+                      {restrictedWrite && !canEdit && (
+                        actionEditable ? (
+                          <Badge className="bg-primary/10 text-primary border border-primary/30 text-[9px] gap-1 h-4" title="Vous êtes responsable : modification autorisée">
+                            <Pencil className="h-2.5 w-2.5" /> Mes actions
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[9px] gap-1 h-4 text-muted-foreground" title="Lecture seule : vous n'êtes pas responsable de cette action">
+                            <Lock className="h-2.5 w-2.5" /> Lecture seule
+                          </Badge>
+                        )
                       )}
                     </div>
                     <div className="flex items-center gap-x-2.5 gap-y-1 mt-1 text-xs text-muted-foreground flex-wrap">
@@ -1090,7 +1125,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                   )}
 
                   {/* Entity links */}
-                  <ProjectActionLinks actionId={action.id} canEdit={canEdit && !isFrozen} />
+                  <ProjectActionLinks actionId={action.id} canEdit={actionEditable && !isFrozen} />
 
                   {/* Dependencies */}
                   <ProjectActionDependencies
@@ -1100,11 +1135,11 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                     allActions={actions.map(a => ({ id: a.id, title: a.title, statut: a.statut, code: `A-${String(actionNumberById[a.id] ?? 0).padStart(3, "0")}` }))}
                     dependencies={dependencies}
                     onChanged={fetchActions}
-                    canEdit={canEdit && !isFrozen && !isCancelled}
+                    canEdit={actionEditable && !isFrozen && !isCancelled}
                   />
 
                   {/* Action inline edit — disabled if frozen */}
-                  {canEdit && !isFrozen && (
+                  {actionEditable && !isFrozen && (
                     <div className="space-y-3">
                       <div className="flex flex-wrap gap-3 items-end">
                         <div className="space-y-1">
@@ -1285,6 +1320,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                           const TaskIcon = ts.icon;
                           const taskDateStatus = getDateStatus(task.echeance, projectDeadline, task.statut);
                           const taskFrozen = isFrozen || task.statut === "termine";
+                          const taskEditable = canEditTask(task, action);
                           return (
                             <div key={task.id} className={`flex items-center gap-2 rounded-lg border bg-background px-3 py-2 group ${
                               taskFrozen && task.statut === "termine" ? "border-emerald-500/20 bg-emerald-50/5" :
@@ -1292,7 +1328,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                               taskDateStatus.status === "exceeds" ? "border-orange-400/30" :
                               "border-border/30"
                             }`}>
-                              {canEdit && !isFrozen ? (
+                              {taskEditable && !isFrozen ? (
                                 task.statut === "termine" ? (
                                   // Terminated task — icon click reopens it
                                   <button
@@ -1323,7 +1359,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                               <span className={`text-sm flex-1 ${task.statut === "termine" ? "text-muted-foreground" : ""}`}>
                                 {task.title}
                               </span>
-                              {canEdit && !isFrozen && task.statut !== "termine" && (
+                              {taskEditable && !isFrozen && task.statut !== "termine" && (
                                 <TaskRespCompact
                                   acteurId={task.responsable_id}
                                   userId={task.responsable_user_id}
@@ -1331,7 +1367,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                                   onChange={(acteurId, userId) => updateTask(task.id, { responsable_id: acteurId, responsable_user_id: userId })}
                                 />
                               )}
-                              {(!canEdit || isFrozen || task.statut === "termine") && task.responsable_id && (() => {
+                              {(!taskEditable || isFrozen || task.statut === "termine") && task.responsable_id && (() => {
                                 const userName = task.responsable_user_id ? formatRespUserName(task.responsable_user_id) : null;
                                 const fonction = getActeurLabel(task.responsable_id);
                                 const display = userName || fonction;
@@ -1343,7 +1379,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                                   </span>
                                 );
                               })()}
-                              {canEdit && !isFrozen && task.statut !== "termine" ? (
+                              {taskEditable && !isFrozen && task.statut !== "termine" ? (
                                 <Input
                                   type="date"
                                   className={`h-6 w-28 text-[10px] border-dashed ${taskDateStatus.status !== "ok" ? "border-orange-400/60" : ""}`}
