@@ -28,19 +28,23 @@ const LicenseContext = createContext<LicenseInfo>({
 
 export const useLicense = () => useContext(LicenseContext);
 
-function computeLicense(settings: AppSettings): { status: LicenseStatus; daysRemaining: number } {
+function computeLicense(settings: AppSettings): { status: LicenseStatus; daysRemaining: number; unlimited: boolean } {
   const now = new Date();
   const mode = settings.license_mode;
+  const unlimited = (settings as any).license_unlimited === "true";
 
   if (mode === "active" || mode === "grace" || mode === "expired") {
+    if (unlimited) {
+      return { status: "active", daysRemaining: 99999, unlimited: true };
+    }
     const expiresAt = settings.license_expires_at ? parseISO(settings.license_expires_at) : null;
     if (!expiresAt || !isValid(expiresAt)) {
-      return { status: "active", daysRemaining: 999 };
+      return { status: "active", daysRemaining: 999, unlimited: false };
     }
 
     const daysUntilExpiry = differenceInDays(expiresAt, now);
     if (daysUntilExpiry > 0) {
-      return { status: "active", daysRemaining: daysUntilExpiry };
+      return { status: "active", daysRemaining: daysUntilExpiry, unlimited: false };
     }
 
     const graceDays = parseInt(settings.license_grace_days) || 30;
@@ -48,10 +52,10 @@ function computeLicense(settings: AppSettings): { status: LicenseStatus; daysRem
     const daysUntilGraceEnd = differenceInDays(graceEnd, now);
 
     if (daysUntilGraceEnd > 0) {
-      return { status: "grace", daysRemaining: daysUntilGraceEnd };
+      return { status: "grace", daysRemaining: daysUntilGraceEnd, unlimited: false };
     }
 
-    return { status: "expired", daysRemaining: 0 };
+    return { status: "expired", daysRemaining: 0, unlimited: false };
   }
 
   // Trial mode
