@@ -955,6 +955,8 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
         const isFrozen = action.statut === "terminee";
         const isBlocked = action.statut === "bloquee" || isBlockedByDeps(action.id);
         const isCancelled = action.statut === "annulee";
+        const actionEditable = canEditAction(action);
+        const mineBadge = restrictedWrite && !canEdit && actionEditable;
 
         const StatusIcon = st.icon ?? Circle;
         const stripeColor = action.pinned ? "bg-primary" : st.stripe;
