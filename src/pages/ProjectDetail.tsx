@@ -236,24 +236,69 @@ export default function ProjectDetail() {
                   <Pencil className="h-3.5 w-3.5 mr-1" /> Modifier
                 </Button>
               )}
-              {canDelete && (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="text-destructive border-destructive/30">
-                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Supprimer
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Supprimer ce projet ?</AlertDialogTitle>
-                      <AlertDialogDescription>Le projet et toutes ses actions et tâches seront supprimés définitivement.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Annuler</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Supprimer</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+              {canArchive && (
+                project.statut === "archive" ? (
+                  <Button variant="outline" size="sm" onClick={handleUnarchive}>
+                    <ArchiveRestore className="h-3.5 w-3.5 mr-1" /> Désarchiver
+                  </Button>
+                ) : (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Archive className="h-3.5 w-3.5 mr-1" /> Archiver
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Archiver ce projet ?</AlertDialogTitle>
+                        <AlertDialogDescription>Le projet sera masqué de la liste principale. Vous pourrez le retrouver via le filtre « Archivé » et le restaurer à tout moment.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleArchive}>Archiver</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )
+              )}
+              {isAdmin && (
+                canDelete ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="text-destructive border-destructive/30">
+                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Supprimer
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Supprimer définitivement ce projet ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Cette action est irréversible : projet, actions, tâches et historique seront supprimés.
+                          La suppression définitive n'est autorisée que durant les 7 jours suivant la création. Au-delà, seule l'archivage est possible.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Supprimer</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span tabIndex={0}>
+                          <Button variant="outline" size="sm" disabled className="text-destructive/50 border-destructive/20">
+                            <Trash2 className="h-3.5 w-3.5 mr-1" /> Supprimer
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Suppression possible uniquement durant les 7 jours suivant la création. Utilisez l'archivage.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )
               )}
             </div>
           </div>
