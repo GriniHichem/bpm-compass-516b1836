@@ -1027,6 +1027,17 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                           Annulée
                         </Badge>
                       )}
+                      {restrictedWrite && !canEdit && (
+                        actionEditable ? (
+                          <Badge className="bg-primary/10 text-primary border border-primary/30 text-[9px] gap-1 h-4" title="Vous êtes responsable : modification autorisée">
+                            <Pencil className="h-2.5 w-2.5" /> Mes actions
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[9px] gap-1 h-4 text-muted-foreground" title="Lecture seule : vous n'êtes pas responsable de cette action">
+                            <Lock className="h-2.5 w-2.5" /> Lecture seule
+                          </Badge>
+                        )
+                      )}
                     </div>
                     <div className="flex items-center gap-x-2.5 gap-y-1 mt-1 text-xs text-muted-foreground flex-wrap">
                       {action.echeance && (
