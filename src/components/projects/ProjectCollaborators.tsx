@@ -223,15 +223,22 @@ export function ProjectCollaborators({ projectId, responsableUserId, visibility,
                     <AvatarFallback className="text-[10px]">{getInitials(c.user_id)}</AvatarFallback>
                   </Avatar>
                   <span className="text-sm flex-1">{getProfileName(c.user_id)}</span>
-                  <Badge variant="outline" className={`text-[10px] ${c.access_level === "write" ? "border-primary/40 text-primary" : "border-muted-foreground/30"}`}>
-                    {c.access_level === "write" ? <><Pencil className="h-2.5 w-2.5 mr-0.5" /> Écriture</> : <><Eye className="h-2.5 w-2.5 mr-0.5" /> Lecture</>}
+                  <Badge variant="outline" className={`text-[10px] ${
+                    c.access_level === "write" ? "border-primary/40 text-primary" :
+                    c.access_level === "restricted_write" ? "border-amber-500/40 text-amber-700 dark:text-amber-400" :
+                    "border-muted-foreground/30"
+                  }`}>
+                    {c.access_level === "write" ? <><Pencil className="h-2.5 w-2.5 mr-0.5" /> Écriture</> :
+                     c.access_level === "restricted_write" ? <><Pencil className="h-2.5 w-2.5 mr-0.5" /> Écriture limitée</> :
+                     <><Eye className="h-2.5 w-2.5 mr-0.5" /> Lecture</>}
                   </Badge>
                   {canEdit && (
                     <div className="flex items-center gap-1">
                       <Select value={c.access_level} onValueChange={(v) => updateAccess(c.id, v)}>
-                        <SelectTrigger className="h-6 w-20 text-[10px] border-none bg-transparent"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-6 w-32 text-[10px] border-none bg-transparent"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="read">Lecture</SelectItem>
+                          <SelectItem value="restricted_write">Écriture limitée</SelectItem>
                           <SelectItem value="write">Écriture</SelectItem>
                         </SelectContent>
                       </Select>
