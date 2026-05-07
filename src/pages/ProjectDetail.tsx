@@ -71,9 +71,14 @@ export default function ProjectDetail() {
   const isAdmin = role === "admin" || role === "rmq";
   const isPrivate = project?.visibility === "private";
   
+  const myCollabLevel = myCollab?.access_level;
   const canRead = isAdmin || isResponsable || !isPrivate || !!myCollab || baseCanRead;
   const canReadDetail = isAdmin || isResponsable || (myCollab ? true : (!isPrivate && baseCanReadDetail));
-  const canEdit = isAdmin || isResponsable || (myCollab?.access_level === "write") || (!isPrivate && baseCanEdit);
+  // Édition complète (tout le plan d'action)
+  const canEditAll = isAdmin || isResponsable || (myCollabLevel === "write") || (!isPrivate && baseCanEdit);
+  // Édition restreinte : peut modifier uniquement les actions/tâches dont il est responsable
+  const canEditOwn = canEditAll || (myCollabLevel === "restricted_write");
+  const canEdit = canEditAll; // legacy: utilisé pour les boutons globaux (création)
   // Seul le responsable du projet et l'admin peuvent supprimer
   const canDelete = isAdmin || isResponsable;
   const canComment = canRead && !!user;
