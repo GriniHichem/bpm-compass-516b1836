@@ -379,6 +379,11 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   };
 
   const updateAction = async (id: string, updates: Record<string, any>) => {
+    const action = getActionById(id);
+    if (!action || !canEditAction(action) || action.statut === "terminee" || action.statut === "annulee") {
+      toast.error("Lecture seule sur cette action");
+      return;
+    }
     const { error } = await supabase.from("project_actions").update(updates).eq("id", id);
     if (error) { toast.error(error.message); return; }
     fetchActions();
@@ -392,6 +397,11 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   };
 
   const updateTask = async (id: string, updates: Record<string, any>) => {
+    const { task, parent } = getTaskWithParent(id);
+    if (!task || !parent || !canEditTask(task, parent) || parent.statut === "terminee" || parent.statut === "annulee" || task.statut === "termine") {
+      toast.error("Lecture seule sur cette tâche");
+      return;
+    }
     const { error } = await supabase.from("project_tasks").update(updates).eq("id", id);
     if (error) { toast.error(error.message); return; }
     fetchActions();
