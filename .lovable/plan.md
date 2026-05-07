@@ -1,138 +1,70 @@
-# Sécurisation des accès aux Plans d'action
 
-## Problème identifié
+## Constat
 
-Bug confirmé sur `src/pages/ProjectDetail.tsx` ligne 80 :
+Règle confirmée : un collaborateur en **Écriture limitée** peut modifier une action/tâche **uniquement si lui-même OU sa fonction** est nommé(e) responsable. Ailleurs : lecture seule.
 
-```ts
-const canEditAll = isAdmin || isResponsable || (myCollabLevel === "write") || (!isPrivate && baseCanEdit);
-```
+Sur le projet test, Salim (`restricted_write`, fonction `3150c9cc` partagée avec Hichem) :
+- DB : `can_write_project = false`, `can_write_project_restricted = true`. La RLS bloque déjà toute modification d'action où ni lui ni sa fonction n'est responsable (actions a1000001, 04, 05, 06, 09, 10, 11). Vérifié par `is_my_project_action` → `false`.
+- UI : malgré ça, plusieurs boutons et champs s'affichent encore comme éditables sur des actions où il n'a aucune responsabilité, ce qui donne l'illusion qu'il peut tout modifier (et certaines actions passent quand même en base parce qu'elles ont sa fonction au slot 1).
 
-Sur un projet **public**, dès qu'un utilisateur a la permission module `actions.can_edit` (cas de Consultant, Responsable processus, RMQ, Auditeur…), il obtient l'édition complète **même s'il est inscrit comme collaborateur en `restricted_write**` (ex. Salim Alak). Le niveau collaborateur est totalement ignoré.
+Il y a aussi des fuites côté **tables annexes** dont la RLS est restée `USING (true)` : `project_action_dependencies`, `project_action_history`, `project_deadline_logs`. Un `restricted_write` peut donc créer/supprimer des dépendances et insérer des logs sur des actions qui ne lui appartiennent pas.
 
-De plus, les politiques RLS PostgreSQL sur `projects`, `project_actions`, `project_tasks`, `project_collaborators`, `project_action_comments` sont toutes `**USING (true) WITH CHECK (true)**` : aucune protection serveur. Tout repose sur les gardes UI, donc contournable via appel API direct.
+## Objectif
 
-## Nouvelle règle d'accès (validée)
+Faire correspondre **strictement** ce que l'écran propose et ce que la base autorise, partout. Aucun bouton "modifier", "ajouter", "supprimer", "épingler", "rouvrir", "transférer", "changer date" ne doit s'afficher si la RLS refusera l'opération.
 
-> **La permission module ne donne que l'accès au menu "Plans d'action" et à la liste.**
-> **Les droits réels sur un projet viennent uniquement du statut sur ce projet.**
+## Changements UI — `ProjectActionsList.tsx`
 
-### Matrice résultante (par projet)
+Rendre le composant pessimiste : par défaut tout est en lecture seule, sauf preuve d'autorisation par ligne.
 
+1. Encapsuler chaque champ inline (Statut, Échéance, Multi-tâches, Avancement, Pin, Responsables, Dates, Liens, Dépendances, Notes) dans `actionEditable` calculé via `canEditAction(action)`. Aujourd'hui plusieurs blocs utilisent encore `canEdit` global ou n'ont aucun garde — ces blocs deviennent invisibles/disabled pour `restricted_write` quand l'action n'est pas la sienne.
+2. Pour les tâches, garder `canEditTask(task, parent)` strict : si ni la tâche ni l'action parente ne sont à lui, aucun champ n'est éditable.
+3. Désactiver `addAction`, `addTask`, `togglePin`, `toggleMultiTasks`, `recalcActionFromTasks`, `applyDependencyAutomation`, `confirmDisableMulti`, `transferDialog` quand `!actionEditable`. Aujourd'hui `addTask` est déjà sous `canEdit` mais l'input reste visible si on déplie une action étrangère — on cache complètement le footer "Nouvelle tâche".
+4. Le bouton "Rouvrir" d'une action figée reste réservé à l'utilisateur nommé OU admin (déjà ok), mais on verrouille pour la fonction partagée seule.
+5. Bandeau "Lecture seule" déjà présent — on ajoute la même logique aux dialogs (changement d'échéance, transfert) qui s'ouvraient sans garde.
 
-| Statut sur le projet                  | Lire | Détail | Commenter | Modifier                                  | Archiver | Supprimer  |
-| ------------------------------------- | ---- | ------ | --------- | ----------------------------------------- | -------- | ---------- |
-| Super Admin / Admin                   | ✓    | ✓      | ✓         | ✓ (tout)                                  | ✓        | ✓ (si <7j) |
-| Responsable du projet                 | ✓    | ✓      | ✓         | ✓ (tout)                                  | ✓        | ✗          |
-| Collaborateur "write"                 | ✓    | ✓      | ✓         | ✓ (tout)                                  | ✗        | ✗          |
-| Collaborateur "restricted_write"      | ✓    | ✓      | ✓         | ✓ (uniquement ses propres actions/tâches) | ✗        | ✗          |
-| Collaborateur "read"                  | ✓    | ✓      | ✓         | ✗                                         | ✗        | ✗          |
-| Projet public, autre user authentifié | ✓    | ✓      | ✓         | ✗                                         | ✗        | ✗          |
-| Projet privé, non collaborateur       | ✗    | ✗      | ✗         | ✗                                         | ✗        | ✗          |
+## Changements UI — `ProjectDetail.tsx`
 
+Aucun changement de logique d'accès (déjà strict). Vérifier que le bouton "Modifier le projet", l'archivage, la suppression, le transfert, la bascule public/privé restent gardés respectivement par `canEdit`, `canArchive`, `canDelete`, `isAdmin || isResponsable`. Audit visuel : OK actuellement.
 
-La permission module `actions.can_edit` ne sert plus qu'à : voir le menu, créer un nouveau projet, et accéder à la liste des projets sur lesquels l'utilisateur a un statut.
+## Sécurité serveur — migration RLS complémentaire
 
-## Changements UI
+Les tables suivantes sont encore en `USING (true)` :
+- `project_action_dependencies` (4 policies trivialement permissives)
+- `project_action_history` (`SELECT … USING true`)
+- `project_deadline_logs` (`SELECT/INSERT … USING true`)
 
-### `src/pages/ProjectDetail.tsx`
+Migration idempotente :
 
-Réécriture de la section permissions effectives (lignes 65-90) :
+- **`project_action_dependencies`** : SELECT si `can_read_project(project_id)`. INSERT/UPDATE/DELETE si `can_write_project(project_id)` OU (`can_write_project_restricted(project_id)` ET `is_my_project_action(source_action_id)` ET `is_my_project_action(target_action_id)`).
+- **`project_action_history`** : SELECT si l'action liée est lisible (`can_read_project` via `project_actions`). INSERT conservé (les triggers sont SECURITY DEFINER).
+- **`project_deadline_logs`** : SELECT si `can_read_project(project_id)`. INSERT si `can_write_project(project_id)` OU (`can_write_project_restricted(project_id)` ET la ligne référencée est à l'utilisateur via `is_my_project_action` / `is_my_project_task`).
 
-```ts
-const isAdmin = hasRole("admin") ||  hasRole("super_admin");
-const isResponsable = project?.responsable_user_id === user?.id 
-                   || (!project?.responsable_user_id && project?.created_by === user?.id);
-const myCollabLevel = collaborators.find(c => c.user_id === user?.id)?.access_level;
-const isPrivate = project?.visibility === "private";
+Drop des anciennes policies `USING (true)` avec `IF EXISTS`, recreate sous le même schéma SECURITY DEFINER que la migration précédente. Aucune fonction nouvelle nécessaire.
 
-// Lecture : admin, responsable, collaborateur, ou projet public
-const canRead       = isAdmin || isResponsable || !!myCollabLevel || !isPrivate;
-const canReadDetail = canRead;
+## Tests de validation (à exécuter avant de fermer le sujet)
 
-// Édition complète : admin, responsable, ou collaborateur "write"
-const canEditAll = isAdmin || isResponsable || myCollabLevel === "write";
-// Édition restreinte : ses propres actions/tâches
-const canEditOwn = canEditAll || myCollabLevel === "restricted_write";
+Je teste depuis le navigateur de Salim sur le projet test :
 
-const canArchive = isAdmin || isResponsable;
-const canDelete  = isAdmin && (Date.now() - new Date(project.created_at).getTime() < 7*864e5);
-const canComment = canRead && !!user;
-```
+| # | Action | Attendu |
+|---|---|---|
+| 1 | Action a1000001 (aucun responsable) | Tous les champs disabled, badge "Lecture seule" |
+| 2 | Action a1000004 (resp = autre fonction) | Idem |
+| 3 | Action a1000002 (resp = sa fonction, user = Hichem) | Champs ouverts, badge "Mes actions" |
+| 4 | Tenter en console `update project_actions … where id = a1000001` | Erreur RLS |
+| 5 | Tenter `insert into project_action_dependencies` sur a1000001 | Erreur RLS |
+| 6 | Tenter `update project_deadline_logs` sur a1000001 | Erreur RLS |
+| 7 | Bouton "Modifier le projet" / Archivage / Visibilité / Transfert | Cachés |
+| 8 | Action a1000003 (sa fonction) → ajouter sous-tâche | OK |
+| 9 | Action a1000003 → supprimer la tâche d'un autre | Bouton supprimer caché (déjà désactivé globalement), et RLS bloque même via API |
 
-La référence à `baseCanEdit / baseCanRead / baseCanReadDetail` sur le module `actions` est supprimée (sauf pour le bouton "Nouveau projet" sur la page liste).
+## Hors périmètre
 
-### `src/pages/Actions.tsx` (liste projets)
+- Pas de changement de la règle "fonction partagée = droit d'édition" (confirmée).
+- Pas de changement de schéma de tables.
+- Pas de modification de `Actions.tsx` (liste projets) ni du Gantt — déjà filtrés correctement.
+- Pas de modification du système de commentaires — RLS déjà strict.
 
-Filtrage strict de la liste : un utilisateur sans rôle admin/RMQ ne voit QUE les projets où il est responsable, créateur, collaborateur, ou les projets publics. Le bouton "Nouveau" reste lié à `actions.can_edit`.
+## Mémoire
 
-### `src/components/projects/ProjectActionsList.tsx`
-
-Aucun changement de logique — `canEditAction`/`canEditTask` (ligne 149-150) appliquent déjà correctement `restricted_write` à la ligne. Mais il faut renforcer : aucun bouton "modifier le projet" / "ajouter action" / "ajouter tâche globale" ne doit s'afficher quand `canEdit` (= `canEditAll`) est faux. Audit complet de tous les `canEdit && (...)` du fichier pour confirmer.
-
-### `src/components/projects/ProjectCollaborators.tsx`
-
-Le panneau "Accès & Collaborateurs" n'est éditable que par Admin/RMQ/Responsable (déjà ok via la prop `canEdit`, qui passera maintenant à `isAdmin || isResponsable`).
-
-## Sécurité serveur — RLS strictes (migration)
-
-Création d'une fonction SECURITY DEFINER de référence + remplacement de toutes les policies trivialement permissives.
-
-```sql
--- Helper : niveau d'accès effectif d'un user sur un projet
-CREATE OR REPLACE FUNCTION public.project_access_level(_user_id uuid, _project_id uuid)
-RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT CASE
-    WHEN public.has_role(_user_id, 'super_admin') THEN 'admin'
-    WHEN public.has_role(_user_id, 'admin')       THEN 'admin'
-    
-    WHEN EXISTS (SELECT 1 FROM projects p WHERE p.id = _project_id 
-                 AND (p.responsable_user_id = _user_id 
-                   OR (p.responsable_user_id IS NULL AND p.created_by = _user_id)))
-      THEN 'responsable'
-    ELSE (SELECT access_level FROM project_collaborators 
-          WHERE project_id = _project_id AND user_id = _user_id LIMIT 1)
-  END
-$$;
-
-CREATE OR REPLACE FUNCTION public.can_read_project(_user_id uuid, _project_id uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT public.project_access_level(_user_id, _project_id) IS NOT NULL
-      OR EXISTS (SELECT 1 FROM projects WHERE id = _project_id AND visibility <> 'private')
-$$;
-
-CREATE OR REPLACE FUNCTION public.can_write_project(_user_id uuid, _project_id uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT public.project_access_level(_user_id, _project_id) IN ('admin','responsable','write')
-$$;
-
--- Pour restricted_write : la check d'appartenance se fait sur la ligne
-CREATE OR REPLACE FUNCTION public.can_write_project_restricted(_user_id uuid, _project_id uuid)
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT public.project_access_level(_user_id, _project_id) 
-         IN ('admin','responsable','write','restricted_write')
-$$;
-```
-
-Policies remplacées (drop + recreate) :
-
-- `**projects**` : SELECT si `can_read_project`; UPDATE si `can_write_project` (responsable_user_id reste protégé par le trigger existant); INSERT par tout authentifié; DELETE bloqué par trigger `guard_project_delete`.
-- `**project_collaborators**` : SELECT si `can_read_project`; INSERT/UPDATE/DELETE si `project_access_level IN ('admin','responsable')`.
-- `**project_actions**` : SELECT si `can_read_project(project_id)`; INSERT/DELETE si `can_write_project`; UPDATE si `can_write_project` OU (`can_write_project_restricted` ET la ligne appartient à l'utilisateur via `responsable_user_id*` ou via `responsable_id*` lié à son `acteur_id`).
-- `**project_tasks**` : idem, en remontant à `project_actions.project_id`.
-- `**project_action_comments**` : SELECT si `can_read_project` (via action→project); INSERT si `can_read_project` ET `auth.uid() = user_id`; UPDATE/DELETE conservés (auteur ou admin).
-- `**project_action_history**` : SELECT si `can_read_project`; INSERT seulement par les triggers existants (déjà SECURITY DEFINER).
-
-Toutes les fonctions sont `STABLE SECURITY DEFINER` pour éviter récursion RLS.
-
-## Détails techniques
-
-- Migration idempotente (`DROP POLICY IF EXISTS` + `CREATE POLICY`), sans toucher aux triggers existants ni aux schémas réservés.
-- Pas de modification du schéma des tables, seulement policies + 4 fonctions helpers.
-- L'ancien fallback `(!isPrivate && baseCanEdit)` est totalement supprimé côté UI ET côté DB.
-- Aucun rôle ne peut "écraser" un projet via permission module : la seule porte est le statut sur le projet (responsable/admin/collaborateur).
-- Salim Alak en `restricted_write` : verra le projet, pourra commenter, mais ne pourra modifier QUE les actions/tâches dont il est responsable. Tentative d'UPDATE sur une autre ligne → bloquée par RLS, pas seulement par l'UI.
-
-## Mémoire à mettre à jour
-
-`mem://features/project-access-management` à réécrire pour refléter la nouvelle règle stricte (module ≠ projet).
+Mettre à jour `mem://features/project-access-management` avec la note explicite : "L'écriture limitée est accordée par utilisateur nommé OU par fonction partagée — comportement intentionnel."

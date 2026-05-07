@@ -1412,8 +1412,8 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                         </div>
                       )}
 
-                      {/* Add task — hidden if frozen */}
-                      {canEdit && !isFrozen && (
+                      {/* Add task — visible si l'utilisateur peut éditer l'action (complet OU restricted sur sa propre action) */}
+                      {actionEditable && !isFrozen && (
                         <div className="flex gap-2">
                           <Input
                             placeholder="Nouvelle tâche..."
