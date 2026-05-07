@@ -39,10 +39,12 @@ interface Props {
   projectId?: string;
   projectResponsableUserId?: string | null;
   actionResponsableUserId?: string | null;
+  canEdit?: boolean;
 }
 
-export function ProjectActionComments({ actionId, canComment, isAdmin, projectId, projectResponsableUserId, actionResponsableUserId }: Props) {
+export function ProjectActionComments({ actionId, canComment, isAdmin, projectId, projectResponsableUserId, actionResponsableUserId, canEdit = false }: Props) {
   const { user } = useAuth();
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [newContent, setNewContent] = useState("");
