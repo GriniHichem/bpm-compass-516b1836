@@ -122,34 +122,26 @@ interface Props {
   isAdmin?: boolean;
   /** Si true, l'utilisateur n'a pas l'édition complète mais peut modifier ses propres actions/tâches uniquement. */
   restrictedWrite?: boolean;
-  /** acteur_id du profil courant (pour matcher responsable_id). */
+  /** Conservé pour compatibilité d'interface ; non utilisé dans la règle stricte actuelle. */
   currentActeurId?: string | null;
   onProgressChange: (avancement: number) => void;
 }
 
-export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDelete: _canDelete, canReadDetail = true, canComment = false, isResponsable = false, isAdmin = false, restrictedWrite = false, currentActeurId = null, onProgressChange }: Props) {
+export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDelete: _canDelete, canReadDetail = true, canComment = false, isResponsable = false, isAdmin = false, restrictedWrite = false, currentActeurId: _currentActeurId = null, onProgressChange }: Props) {
   // Suppression d'actions/tâches désactivée pour tous les rôles : intégrité du plan
   const canDelete = false;
   const { user } = useAuth();
   const userId = user?.id ?? null;
 
-  // Priorité stricte : si un utilisateur précis est désigné sur un slot, lui seul compte.
-  // La fonction partagée ne donne l'accès que si aucun utilisateur précis n'est renseigné sur ce slot.
+  // Règle stricte : en écriture limitée, seule une désignation utilisateur explicite
+  // sur l'action (responsable 1/2/3) ouvre le droit d'édition de l'action.
   const isMyAction = (a: { responsable_id: string | null; responsable_id_2: string | null; responsable_id_3: string | null; responsable_user_id: string | null; responsable_user_id_2: string | null; responsable_user_id_3: string | null; }) => {
     if (!userId) return false;
-    if ([a.responsable_user_id, a.responsable_user_id_2, a.responsable_user_id_3].some(v => v && v === userId)) return true;
-    if (currentActeurId && (
-      (!a.responsable_user_id && a.responsable_id === currentActeurId)
-      || (!a.responsable_user_id_2 && a.responsable_id_2 === currentActeurId)
-      || (!a.responsable_user_id_3 && a.responsable_id_3 === currentActeurId)
-    )) return true;
-    return false;
+    return [a.responsable_user_id, a.responsable_user_id_2, a.responsable_user_id_3].some((v) => v === userId);
   };
   const isMyTask = (t: { responsable_id: string | null; responsable_user_id: string | null; }) => {
     if (!userId) return false;
-    if (t.responsable_user_id && t.responsable_user_id === userId) return true;
-    if (currentActeurId && !t.responsable_user_id && t.responsable_id && t.responsable_id === currentActeurId) return true;
-    return false;
+    return t.responsable_user_id === userId;
   };
   const canEditAction = (a: ProjectAction) => canEdit || (restrictedWrite && isMyAction(a));
   const canEditTask = (t: ProjectTask, parent?: ProjectAction) => canEdit || (restrictedWrite && (isMyTask(t) || (parent ? isMyAction(parent) : false)));
@@ -1185,7 +1177,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                   )}
 
                   {/* Entity links */}
-                  <ProjectActionLinks actionId={action.id} canEdit={actionEditable && !isFrozen} />
+                  <ProjectActionLinks actionId={action.id} canEdit={actionEditable && !isFrozen && !isCancelled} />
 
                   {/* Dependencies */}
                   <ProjectActionDependencies
@@ -1515,7 +1507,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                     </div>
                     {notesOpen === action.id && (
                       <div className="mt-2">
-                        <ProjectActionComments actionId={action.id} canComment={canComment} isAdmin={isAdmin} projectId={projectId} projectResponsableUserId={isResponsable ? user?.id : undefined} actionResponsableUserId={action.responsable_user_id} canEdit={canEdit} />
+                        <ProjectActionComments actionId={action.id} canComment={canComment} isAdmin={isAdmin} projectId={projectId} projectResponsableUserId={isResponsable ? user?.id : undefined} actionResponsableUserId={action.responsable_user_id} canEdit={actionEditable} />
                       </div>
                     )}
                   </div>

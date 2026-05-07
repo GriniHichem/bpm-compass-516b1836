@@ -115,6 +115,10 @@ export function ProjectActionLinks({ actionId, canEdit }: Props) {
   };
 
   const addLink = async () => {
+    if (!canEdit) {
+      toast.error("Lecture seule sur cette action");
+      return;
+    }
     if (!selectedEntity || !selectedType) return;
     // Store "opportunity" as "risk" in DB (same table)
     const dbType = selectedType === "opportunity" ? "risk" : selectedType;
@@ -136,6 +140,10 @@ export function ProjectActionLinks({ actionId, canEdit }: Props) {
   };
 
   const removeLink = async (linkId: string) => {
+    if (!canEdit) {
+      toast.error("Lecture seule sur cette action");
+      return;
+    }
     await supabase.from("project_action_links").delete().eq("id", linkId);
     toast.success("Lien supprimé");
     fetchLinks();
