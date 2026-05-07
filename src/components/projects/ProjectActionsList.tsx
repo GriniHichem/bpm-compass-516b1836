@@ -120,10 +120,14 @@ interface Props {
   canComment?: boolean;
   isResponsable?: boolean;
   isAdmin?: boolean;
+  /** Si true, l'utilisateur n'a pas l'édition complète mais peut modifier ses propres actions/tâches uniquement. */
+  restrictedWrite?: boolean;
+  /** acteur_id du profil courant (pour matcher responsable_id). */
+  currentActeurId?: string | null;
   onProgressChange: (avancement: number) => void;
 }
 
-export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDelete, canReadDetail = true, canComment = false, isResponsable = false, isAdmin = false, onProgressChange }: Props) {
+export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDelete, canReadDetail = true, canComment = false, isResponsable = false, isAdmin = false, restrictedWrite = false, currentActeurId = null, onProgressChange }: Props) {
   const { user } = useAuth();
   const [actions, setActions] = useState<ProjectAction[]>([]);
   const [tasksMap, setTasksMap] = useState<Record<string, ProjectTask[]>>({});
