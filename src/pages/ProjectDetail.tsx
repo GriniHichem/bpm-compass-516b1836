@@ -46,7 +46,7 @@ const STATUS_MAP: Record<string, { label: string; class: string }> = {
 export default function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { hasPermission, user, role } = useAuth();
+  const { hasPermission, user, role, profile } = useAuth();
   const { acteurs, getActeurLabel } = useActeurs();
 
   const [project, setProject] = useState<Project | null>(null);
