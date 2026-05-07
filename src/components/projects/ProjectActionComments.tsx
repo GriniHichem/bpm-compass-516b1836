@@ -112,17 +112,64 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
 
   useEffect(() => { fetchComments(); }, [actionId]);
 
+  const insertToken = (token: string) => {
+    const ta = textareaRef.current;
+    if (!ta) {
+      setNewContent((prev) => (prev ? `${prev} ${token} ` : `${token} `));
+      return;
+    }
+    const start = ta.selectionStart ?? newContent.length;
+    const end = ta.selectionEnd ?? newContent.length;
+    const before = newContent.slice(0, start);
+    const after = newContent.slice(end);
+    const sep = before && !before.endsWith(" ") ? " " : "";
+    const next = `${before}${sep}${token} ${after}`;
+    setNewContent(next);
+    requestAnimationFrame(() => {
+      const pos = (before + sep + token + " ").length;
+      ta.focus();
+      ta.setSelectionRange(pos, pos);
+    });
+  };
+
   const handleSubmit = async () => {
     if (!newContent.trim() || !user) return;
     setSubmitting(true);
-    const { error } = await supabase.from("project_action_comments").insert({
-      action_id: actionId,
-      user_id: user.id,
-      content: newContent.trim(),
-      is_private: isPrivate,
-    });
+    const { data: inserted, error } = await supabase
+      .from("project_action_comments")
+      .insert({
+        action_id: actionId,
+        user_id: user.id,
+        content: newContent.trim(),
+        is_private: isPrivate,
+      })
+      .select("id")
+      .single();
     setSubmitting(false);
-    if (error) { toast.error(error.message); return; }
+    if (error || !inserted) { toast.error(error?.message ?? "Erreur"); return; }
+
+    // Mentions : enregistrer + notifier (fire-and-forget)
+    const mentioned = extractMentionedUserIds(newContent).filter((id) => id !== user.id);
+    if (mentioned.length > 0) {
+      const commentId = (inserted as any).id as string;
+      const projectPath = projectId ? `/actions/${projectId}` : "/actions";
+      void supabase.from("comment_mentions").insert(
+        mentioned.map((uid) => ({ comment_id: commentId, mentioned_user_id: uid }))
+      );
+      void supabase.from("notifications").insert(
+        mentioned.map((uid) => ({
+          user_id: uid,
+          type: "mention",
+          title: "Vous avez été mentionné",
+          message: newContent.trim().replace(/\[[^\]]+\|([^\]]+)\]/g, "$1").slice(0, 200),
+          entity_type: "project_action_comments",
+          entity_id: commentId,
+          entity_url: projectPath,
+          channel: "both",
+        }))
+      );
+    }
+
     setNewContent("");
     setIsPrivate(false);
     fetchComments();
