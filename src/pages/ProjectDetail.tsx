@@ -190,6 +190,22 @@ export default function ProjectDetail() {
     navigate("/actions");
   };
 
+  const handleArchive = async () => {
+    if (!projectId) return;
+    const { error } = await supabase.from("projects").update({ statut: "archive" }).eq("id", projectId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Projet archivé");
+    fetchProject();
+  };
+
+  const handleUnarchive = async () => {
+    if (!projectId) return;
+    const { error } = await supabase.from("projects").update({ statut: "en_cours" }).eq("id", projectId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Projet désarchivé");
+    fetchProject();
+  };
+
   if (loading) {
     return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
   }
