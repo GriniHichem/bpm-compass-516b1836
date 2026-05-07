@@ -30,6 +30,7 @@ interface Project {
   date_debut: string | null;
   date_fin: string | null;
   created_by: string | null;
+  created_at: string;
   objectives: string[];
   resources_list: string[];
   responsable_user_id: string | null;
