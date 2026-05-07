@@ -300,7 +300,7 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground whitespace-pre-wrap mt-0.5">{comment.content}</p>
+              <CommentRenderer content={comment.content} />
             )}
 
             {editingId !== comment.id && (
