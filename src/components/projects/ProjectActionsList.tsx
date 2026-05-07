@@ -1177,7 +1177,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                   )}
 
                   {/* Entity links */}
-                  <ProjectActionLinks actionId={action.id} canEdit={actionEditable && !isFrozen} />
+                  <ProjectActionLinks actionId={action.id} canEdit={actionEditable && !isFrozen && !isCancelled} />
 
                   {/* Dependencies */}
                   <ProjectActionDependencies
@@ -1507,7 +1507,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                     </div>
                     {notesOpen === action.id && (
                       <div className="mt-2">
-                        <ProjectActionComments actionId={action.id} canComment={canComment} isAdmin={isAdmin} projectId={projectId} projectResponsableUserId={isResponsable ? user?.id : undefined} actionResponsableUserId={action.responsable_user_id} canEdit={canEdit} />
+                        <ProjectActionComments actionId={action.id} canComment={canComment} isAdmin={isAdmin} projectId={projectId} projectResponsableUserId={isResponsable ? user?.id : undefined} actionResponsableUserId={action.responsable_user_id} canEdit={actionEditable} />
                       </div>
                     )}
                   </div>
