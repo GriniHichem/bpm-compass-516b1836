@@ -332,6 +332,7 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
         <div className="space-y-2">
           <div className="flex gap-2 items-end">
             <Textarea
+              ref={textareaRef}
               placeholder="Ajouter un commentaire..."
               value={newContent}
               onChange={e => setNewContent(e.target.value)}
@@ -342,6 +343,14 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
               <Send className="h-3.5 w-3.5" />
             </Button>
           </div>
+          {projectId && (
+            <CommentToolbar
+              projectId={projectId}
+              actionId={actionId}
+              canCreateTask={canEdit}
+              onInsert={insertToken}
+            />
+          )}
           {(() => {
             const projResp = resolvedProjectResp ?? projectResponsableUserId;
             const canMarkPrivate = isAdmin
