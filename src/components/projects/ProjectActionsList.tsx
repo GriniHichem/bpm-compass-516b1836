@@ -148,6 +148,16 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   };
   const canEditAction = (a: ProjectAction) => canEdit || (restrictedWrite && isMyAction(a));
   const canEditTask = (t: ProjectTask, parent?: ProjectAction) => canEdit || (restrictedWrite && (isMyTask(t) || (parent ? isMyAction(parent) : false)));
+  const getActionById = (actionId: string) => actions.find((a) => a.id === actionId);
+  const getTaskWithParent = (taskId: string) => {
+    for (const [actionId, tasks] of Object.entries(tasksMap)) {
+      const task = tasks.find((t) => t.id === taskId);
+      if (task) {
+        return { task, parent: actions.find((a) => a.id === actionId) ?? null };
+      }
+    }
+    return { task: null as ProjectTask | null, parent: null as ProjectAction | null };
+  };
 
   const [actions, setActions] = useState<ProjectAction[]>([]);
   const [tasksMap, setTasksMap] = useState<Record<string, ProjectTask[]>>({});
@@ -302,8 +312,12 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   const addTask = async (actionId: string) => {
     const title = newTaskTitle[actionId]?.trim();
     if (!title) return;
-    const existing = tasksMap[actionId] ?? [];
     const action = actions.find(a => a.id === actionId);
+    if (!action || !canEditAction(action) || action.statut === "terminee" || action.statut === "annulee") {
+      toast.error("Lecture seule sur cette action");
+      return;
+    }
+    const existing = tasksMap[actionId] ?? [];
     const payload: any = {
       action_id: actionId,
       title,
@@ -324,6 +338,19 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   };
 
   const handleDateChange = (entityType: "action" | "task", entityId: string, entityTitle: string, oldDate: string | null, newDate: string) => {
+    if (entityType === "action") {
+      const action = getActionById(entityId);
+      if (!action || !canEditAction(action) || action.statut === "terminee" || action.statut === "annulee") {
+        toast.error("Lecture seule sur cette action");
+        return;
+      }
+    } else {
+      const { task, parent } = getTaskWithParent(entityId);
+      if (!task || !parent || !canEditTask(task, parent) || parent.statut === "terminee" || parent.statut === "annulee" || task.statut === "termine") {
+        toast.error("Lecture seule sur cette tâche");
+        return;
+      }
+    }
     if (projectDeadline && newDate && isAfter(parseISO(newDate), parseISO(projectDeadline))) {
       toast.warning(`⚠️ Cette date dépasse la deadline du projet (${projectDeadline}).`, { duration: 5000 });
     }
@@ -398,6 +425,10 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
 
   /** Handle status change with validation */
   const handleStatusChange = (action: ProjectAction, newStatut: string) => {
+    if (!canEditAction(action) || action.statut === "terminee" || action.statut === "annulee") {
+      toast.error("Lecture seule sur cette action");
+      return;
+    }
     // Blocked actions can't move to en_cours
     if (newStatut === "en_cours" && isBlockedByDeps(action.id)) {
       toast.error("Cette action est bloquée par une dépendance non terminée.", { duration: 5000 });
@@ -520,6 +551,10 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
 
   /** Toggle multi-tasks mode */
   const toggleMultiTasks = async (action: ProjectAction) => {
+    if (!canEditAction(action) || action.statut === "terminee" || action.statut === "annulee") {
+      toast.error("Lecture seule sur cette action");
+      return;
+    }
     if (action.multi_tasks) {
       const tasks = tasksMap[action.id] ?? [];
       if (tasks.length > 0) {
@@ -543,9 +578,13 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
 
   /** Update avancement for simple action (no multi-tasks) */
   const handleSimpleAvancement = async (actionId: string, value: number) => {
+    const action = getActionById(actionId);
+    if (!action || !canEditAction(action) || action.statut === "terminee" || action.statut === "annulee") {
+      toast.error("Lecture seule sur cette action");
+      return;
+    }
     if (value === 100) {
       // Instead of silently setting terminee, show confirmation
-      const action = actions.find(a => a.id === actionId);
       if (action) {
         // Temporarily save progress, then ask to confirm close
         await supabase.from("project_actions").update({ avancement: value }).eq("id", actionId);
@@ -636,6 +675,10 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   }, [actions]);
 
   const togglePin = async (action: ProjectAction) => {
+    if (!canEditAction(action) || action.statut === "terminee" || action.statut === "annulee") {
+      toast.error("Lecture seule sur cette action");
+      return;
+    }
     await updateAction(action.id, { pinned: !action.pinned });
     toast.success(action.pinned ? "Action désépinglée" : "Action épinglée comme prioritaire");
   };
