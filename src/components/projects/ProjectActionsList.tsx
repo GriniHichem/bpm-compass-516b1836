@@ -1114,7 +1114,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                   )}
 
                   {/* Entity links */}
-                  <ProjectActionLinks actionId={action.id} canEdit={canEdit && !isFrozen} />
+                  <ProjectActionLinks actionId={action.id} canEdit={actionEditable && !isFrozen} />
 
                   {/* Dependencies */}
                   <ProjectActionDependencies
@@ -1124,11 +1124,11 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                     allActions={actions.map(a => ({ id: a.id, title: a.title, statut: a.statut, code: `A-${String(actionNumberById[a.id] ?? 0).padStart(3, "0")}` }))}
                     dependencies={dependencies}
                     onChanged={fetchActions}
-                    canEdit={canEdit && !isFrozen && !isCancelled}
+                    canEdit={actionEditable && !isFrozen && !isCancelled}
                   />
 
                   {/* Action inline edit — disabled if frozen */}
-                  {canEdit && !isFrozen && (
+                  {actionEditable && !isFrozen && (
                     <div className="space-y-3">
                       <div className="flex flex-wrap gap-3 items-end">
                         <div className="space-y-1">
