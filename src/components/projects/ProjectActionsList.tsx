@@ -127,7 +127,9 @@ interface Props {
   onProgressChange: (avancement: number) => void;
 }
 
-export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDelete, canReadDetail = true, canComment = false, isResponsable = false, isAdmin = false, restrictedWrite = false, currentActeurId = null, onProgressChange }: Props) {
+export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDelete: _canDelete, canReadDetail = true, canComment = false, isResponsable = false, isAdmin = false, restrictedWrite = false, currentActeurId = null, onProgressChange }: Props) {
+  // Suppression d'actions/tâches désactivée pour tous les rôles : intégrité du plan
+  const canDelete = false;
   const { user } = useAuth();
   const userId = user?.id ?? null;
 
