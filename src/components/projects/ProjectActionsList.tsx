@@ -1080,7 +1080,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                         "text-muted-foreground"
                       }`}>{action.avancement}%</span>
                     </div>
-                    {canEdit && (
+                    {actionEditable && !isFrozen && !isCancelled && (
                       <button
                         className={`shrink-0 p-1 rounded transition-colors ${action.pinned ? "text-primary hover:text-primary/70" : "text-muted-foreground/40 hover:text-primary"}`}
                         onClick={(e) => { e.stopPropagation(); togglePin(action); }}
@@ -1176,6 +1176,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                             <Switch
                               checked={action.multi_tasks}
                               onCheckedChange={() => toggleMultiTasks(action)}
+                              disabled={!actionEditable || isFrozen || isCancelled}
                             />
                             <span className="text-[10px] text-muted-foreground">{action.multi_tasks ? "Activé" : "Désactivé"}</span>
                           </div>
@@ -1220,6 +1221,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                           <button
                             type="button"
                             onClick={() => setShowResp2(prev => new Set([...prev, action.id]))}
+                            disabled={!actionEditable || isFrozen || isCancelled}
                             className="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 bg-transparent px-3 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors min-h-[64px]"
                           >
                             <UserPlus className="h-3.5 w-3.5" /> Ajouter Responsable 2
@@ -1240,6 +1242,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                           <button
                             type="button"
                             onClick={() => setShowResp3(prev => new Set([...prev, action.id]))}
+                            disabled={!actionEditable || isFrozen || isCancelled}
                             className="flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 bg-transparent px-3 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-colors min-h-[64px]"
                           >
                             <UserPlus className="h-3.5 w-3.5" /> Ajouter Responsable 3
@@ -1258,6 +1261,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                             className="h-8 w-24 text-xs"
                             placeholder="Auto"
                             value={action.poids ?? ""}
+                            disabled={!actionEditable || isFrozen || isCancelled}
                             onChange={(e) => {
                               const val = e.target.value === "" ? null : Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
                               if (val !== null) {
@@ -1290,6 +1294,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                               value={[action.avancement]}
                               max={100}
                               step={5}
+                              disabled={!actionEditable || isFrozen || isCancelled}
                               onValueCommit={(v) => handleSimpleAvancement(action.id, v[0])}
                               className="flex-1"
                             />
