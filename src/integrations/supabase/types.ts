@@ -3942,6 +3942,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_read_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_write_project: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_write_project_restricted: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
       cleanup_old_audit_logs: { Args: { _days?: number }; Returns: number }
       get_user_role: {
         Args: { _user_id: string }
@@ -3953,6 +3965,18 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      is_my_project_action: {
+        Args: { _action_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_my_project_task: {
+        Args: { _task_id: string; _user_id: string }
+        Returns: boolean
+      }
+      project_access_level: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: string
       }
       resolve_notification_channel: {
         Args: { _entity_type: string; _notif_type: string; _user_id: string }

@@ -48,7 +48,7 @@ const STATUS_MAP: Record<string, { label: string; class: string }> = {
 export default function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const { hasPermission, user, role, profile } = useAuth();
+  const { hasPermission, hasRole, user, role, profile } = useAuth();
   const { acteurs, getActeurLabel } = useActeurs();
 
   const [project, setProject] = useState<Project | null>(null);
@@ -62,25 +62,28 @@ export default function ProjectDetail() {
   const [deadlineLogs, setDeadlineLogs] = useState<any[]>([]);
   const [collaborators, setCollaborators] = useState<{ user_id: string; access_level: string }[]>([]);
 
-  const baseCanRead = hasPermission("actions", "can_read");
-  const baseCanReadDetail = hasPermission("actions", "can_read_detail");
-  const baseCanEdit = hasPermission("actions", "can_edit");
-  const baseCanDelete = hasPermission("actions", "can_delete");
-
-  // Compute effective permissions based on project visibility/collaborators
-  const isResponsable = project?.responsable_user_id === user?.id || project?.created_by === user?.id;
-  const myCollab = collaborators.find(c => c.user_id === user?.id);
-  const isAdmin = role === "admin" || role === "rmq";
+  // ⚠️ Règle d'accès stricte :
+  // La permission module "actions" ne sert QU'à l'accès au menu et à la liste.
+  // Les droits réels sur un projet viennent UNIQUEMENT du statut sur ce projet
+  // (Admin/RMQ/Super Admin, Responsable, ou Collaborateur explicite).
+  // Cf. memory mem://features/project-access-management
+  const isAdmin = hasRole("admin") || hasRole("rmq") || hasRole("super_admin");
+  const isResponsable =
+    !!user?.id &&
+    !!project &&
+    (project.responsable_user_id === user.id ||
+      (!project.responsable_user_id && project.created_by === user.id));
+  const myCollabLevel = collaborators.find((c) => c.user_id === user?.id)?.access_level;
   const isPrivate = project?.visibility === "private";
-  
-  const myCollabLevel = myCollab?.access_level;
-  const canRead = isAdmin || isResponsable || !isPrivate || !!myCollab || baseCanRead;
-  const canReadDetail = isAdmin || isResponsable || (myCollab ? true : (!isPrivate && baseCanReadDetail));
-  // Édition complète (tout le plan d'action)
-  const canEditAll = isAdmin || isResponsable || (myCollabLevel === "write") || (!isPrivate && baseCanEdit);
+
+  // Lecture : admin, responsable, collaborateur quel que soit le niveau, ou projet public
+  const canRead = isAdmin || isResponsable || !!myCollabLevel || !isPrivate;
+  const canReadDetail = canRead;
+  // Édition complète : admin, responsable, ou collaborateur "write"
+  const canEditAll = isAdmin || isResponsable || myCollabLevel === "write";
   // Édition restreinte : peut modifier uniquement les actions/tâches dont il est responsable
-  const canEditOwn = canEditAll || (myCollabLevel === "restricted_write");
-  const canEdit = canEditAll; // legacy: utilisé pour les boutons globaux (création)
+  const canEditOwn = canEditAll || myCollabLevel === "restricted_write";
+  const canEdit = canEditAll;
   // Archivage : Admin/RMQ ou Responsable
   const canArchive = isAdmin || isResponsable;
   // Suppression définitive : Admin/RMQ uniquement, dans les 7 jours suivant la création
