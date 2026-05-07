@@ -158,4 +158,3 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
     </LicenseContext.Provider>
   );
 }
-}
