@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, useCallback, ReactNode } from "react";
 import { useAppSettings, type AppSettings } from "@/contexts/AppSettingsContext";
 import { setLicenseReadOnly } from "@/lib/licenseState";
+import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays, addDays, parseISO, isValid } from "date-fns";
 
 export type LicenseStatus = "trial" | "active" | "grace" | "expired";
@@ -9,9 +10,10 @@ interface LicenseInfo {
   status: LicenseStatus;
   daysRemaining: number;
   isReadOnly: boolean;
+  unlimited: boolean;
   alertMessage: string | null;
   alertLevel: "info" | "warning" | "destructive" | null;
-  activateLicense: (code: string, expiresAt: string) => Promise<void>;
+  activateLicense: (code: string) => Promise<{ unlimited: boolean; expires_at: string | null }>;
 }
 
 const LicenseContext = createContext<LicenseInfo>({
