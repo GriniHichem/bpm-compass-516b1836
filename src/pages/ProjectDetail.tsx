@@ -81,8 +81,12 @@ export default function ProjectDetail() {
   // Édition restreinte : peut modifier uniquement les actions/tâches dont il est responsable
   const canEditOwn = canEditAll || (myCollabLevel === "restricted_write");
   const canEdit = canEditAll; // legacy: utilisé pour les boutons globaux (création)
-  // Seul le responsable du projet et l'admin peuvent supprimer
-  const canDelete = isAdmin || isResponsable;
+  // Archivage : Admin/RMQ ou Responsable
+  const canArchive = isAdmin || isResponsable;
+  // Suppression définitive : Admin/RMQ uniquement, dans les 7 jours suivant la création
+  const projectAgeMs = project ? Date.now() - new Date(project.created_at).getTime() : 0;
+  const withinDeleteWindow = projectAgeMs < 7 * 24 * 3600 * 1000;
+  const canDelete = isAdmin && withinDeleteWindow;
   const canComment = canRead && !!user;
 
   const fetchProject = async () => {
