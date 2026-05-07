@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, useCallback, ReactNode } from "react";
 import { useAppSettings, type AppSettings } from "@/contexts/AppSettingsContext";
 import { setLicenseReadOnly } from "@/lib/licenseState";
+import { supabase } from "@/integrations/supabase/client";
 import { differenceInDays, addDays, parseISO, isValid } from "date-fns";
 
 export type LicenseStatus = "trial" | "active" | "grace" | "expired";
@@ -9,35 +10,41 @@ interface LicenseInfo {
   status: LicenseStatus;
   daysRemaining: number;
   isReadOnly: boolean;
+  unlimited: boolean;
   alertMessage: string | null;
   alertLevel: "info" | "warning" | "destructive" | null;
-  activateLicense: (code: string, expiresAt: string) => Promise<void>;
+  activateLicense: (code: string) => Promise<{ unlimited: boolean; expires_at: string | null }>;
 }
 
 const LicenseContext = createContext<LicenseInfo>({
   status: "trial",
   daysRemaining: 30,
   isReadOnly: false,
+  unlimited: false,
   alertMessage: null,
   alertLevel: null,
-  activateLicense: async () => {},
+  activateLicense: async () => ({ unlimited: false, expires_at: null }),
 });
 
 export const useLicense = () => useContext(LicenseContext);
 
-function computeLicense(settings: AppSettings): { status: LicenseStatus; daysRemaining: number } {
+function computeLicense(settings: AppSettings): { status: LicenseStatus; daysRemaining: number; unlimited: boolean } {
   const now = new Date();
   const mode = settings.license_mode;
+  const unlimited = (settings as any).license_unlimited === "true";
 
   if (mode === "active" || mode === "grace" || mode === "expired") {
+    if (unlimited) {
+      return { status: "active", daysRemaining: 99999, unlimited: true };
+    }
     const expiresAt = settings.license_expires_at ? parseISO(settings.license_expires_at) : null;
     if (!expiresAt || !isValid(expiresAt)) {
-      return { status: "active", daysRemaining: 999 };
+      return { status: "active", daysRemaining: 999, unlimited: false };
     }
 
     const daysUntilExpiry = differenceInDays(expiresAt, now);
     if (daysUntilExpiry > 0) {
-      return { status: "active", daysRemaining: daysUntilExpiry };
+      return { status: "active", daysRemaining: daysUntilExpiry, unlimited: false };
     }
 
     const graceDays = parseInt(settings.license_grace_days) || 30;
@@ -45,10 +52,10 @@ function computeLicense(settings: AppSettings): { status: LicenseStatus; daysRem
     const daysUntilGraceEnd = differenceInDays(graceEnd, now);
 
     if (daysUntilGraceEnd > 0) {
-      return { status: "grace", daysRemaining: daysUntilGraceEnd };
+      return { status: "grace", daysRemaining: daysUntilGraceEnd, unlimited: false };
     }
 
-    return { status: "expired", daysRemaining: 0 };
+    return { status: "expired", daysRemaining: 0, unlimited: false };
   }
 
   // Trial mode
@@ -58,7 +65,7 @@ function computeLicense(settings: AppSettings): { status: LicenseStatus; daysRem
   const daysLeft = differenceInDays(trialEnd, now);
 
   if (daysLeft > 0) {
-    return { status: "trial", daysRemaining: daysLeft };
+    return { status: "trial", daysRemaining: daysLeft, unlimited: false };
   }
 
   // Trial ended → check grace
@@ -67,16 +74,17 @@ function computeLicense(settings: AppSettings): { status: LicenseStatus; daysRem
   const graceLeft = differenceInDays(graceEnd, now);
 
   if (graceLeft > 0) {
-    return { status: "grace", daysRemaining: graceLeft };
+    return { status: "grace", daysRemaining: graceLeft, unlimited: false };
   }
 
-  return { status: "expired", daysRemaining: 0 };
+  return { status: "expired", daysRemaining: 0, unlimited: false };
 }
 
 function getAlertInfo(
   status: LicenseStatus,
   daysRemaining: number,
-  alertDaysBefore: number
+  alertDaysBefore: number,
+  unlimited: boolean
 ): { message: string | null; level: "info" | "warning" | "destructive" | null } {
   switch (status) {
     case "trial":
@@ -85,6 +93,7 @@ function getAlertInfo(
         level: "info",
       };
     case "active":
+      if (unlimited) return { message: null, level: null };
       if (daysRemaining <= alertDaysBefore) {
         return {
           message: `Votre licence expire dans ${daysRemaining} jour${daysRemaining > 1 ? "s" : ""}`,
@@ -106,34 +115,45 @@ function getAlertInfo(
 }
 
 export function LicenseProvider({ children }: { children: ReactNode }) {
-  const { settings, updateSetting, refreshSettings } = useAppSettings();
+  const { settings, refreshSettings } = useAppSettings();
 
-  const { status, daysRemaining } = useMemo(() => computeLicense(settings), [settings]);
+  const { status, daysRemaining, unlimited } = useMemo(() => computeLicense(settings), [settings]);
   const alertDaysBefore = parseInt(settings.license_alert_days_before) || 90;
   const { message: alertMessage, level: alertLevel } = useMemo(
-    () => getAlertInfo(status, daysRemaining, alertDaysBefore),
-    [status, daysRemaining, alertDaysBefore]
+    () => getAlertInfo(status, daysRemaining, alertDaysBefore, unlimited),
+    [status, daysRemaining, alertDaysBefore, unlimited]
   );
 
   const isReadOnly = status === "expired";
   setLicenseReadOnly(isReadOnly);
 
   const activateLicense = useCallback(
-    async (code: string, expiresAt: string) => {
-      if (!/^[A-Za-z0-9]{32}$/.test(code)) {
+    async (code: string) => {
+      const normalized = code.trim().toUpperCase();
+      if (!/^[A-Za-z0-9]{32}$/.test(normalized)) {
         throw new Error("Le code doit contenir exactement 32 caractères alphanumériques");
       }
-      await updateSetting("license_key", code);
-      await updateSetting("license_mode", "active");
-      await updateSetting("license_activated_at", new Date().toISOString().split("T")[0]);
-      await updateSetting("license_expires_at", expiresAt);
+      const { data, error } = await supabase.functions.invoke("activate-license", {
+        body: { code: normalized },
+      });
+      if (error) {
+        const msg = (data as any)?.error || error.message || "Échec d'activation";
+        throw new Error(msg);
+      }
+      if ((data as any)?.error) {
+        throw new Error((data as any).error);
+      }
       await refreshSettings();
+      return {
+        unlimited: !!(data as any)?.unlimited,
+        expires_at: ((data as any)?.expires_at as string | null) ?? null,
+      };
     },
-    [updateSetting, refreshSettings]
+    [refreshSettings]
   );
 
   return (
-    <LicenseContext.Provider value={{ status, daysRemaining, isReadOnly, alertMessage, alertLevel, activateLicense }}>
+    <LicenseContext.Provider value={{ status, daysRemaining, isReadOnly, unlimited, alertMessage, alertLevel, activateLicense }}>
       {children}
     </LicenseContext.Provider>
   );

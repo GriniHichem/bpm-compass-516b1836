@@ -1575,6 +1575,36 @@ export type Database = {
           },
         ]
       }
+      licenses: {
+        Row: {
+          code: string
+          created_at: string
+          duration_days: number | null
+          ordinal: number
+          used: boolean
+          used_at: string | null
+          used_by_install: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          duration_days?: number | null
+          ordinal: number
+          used?: boolean
+          used_at?: string | null
+          used_by_install?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          duration_days?: number | null
+          ordinal?: number
+          used?: boolean
+          used_at?: string | null
+          used_by_install?: string | null
+        }
+        Relationships: []
+      }
       management_reviews: {
         Row: {
           actions_decidees: string
