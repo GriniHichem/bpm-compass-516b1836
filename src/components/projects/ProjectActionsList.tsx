@@ -133,17 +133,22 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   const { user } = useAuth();
   const userId = user?.id ?? null;
 
-  // Détermine si l'utilisateur courant est responsable d'une action (3 slots user + 3 slots acteur)
+  // Priorité stricte : si un utilisateur précis est désigné sur un slot, lui seul compte.
+  // La fonction partagée ne donne l'accès que si aucun utilisateur précis n'est renseigné sur ce slot.
   const isMyAction = (a: { responsable_id: string | null; responsable_id_2: string | null; responsable_id_3: string | null; responsable_user_id: string | null; responsable_user_id_2: string | null; responsable_user_id_3: string | null; }) => {
     if (!userId) return false;
     if ([a.responsable_user_id, a.responsable_user_id_2, a.responsable_user_id_3].some(v => v && v === userId)) return true;
-    if (currentActeurId && [a.responsable_id, a.responsable_id_2, a.responsable_id_3].some(v => v && v === currentActeurId)) return true;
+    if (currentActeurId && (
+      (!a.responsable_user_id && a.responsable_id === currentActeurId)
+      || (!a.responsable_user_id_2 && a.responsable_id_2 === currentActeurId)
+      || (!a.responsable_user_id_3 && a.responsable_id_3 === currentActeurId)
+    )) return true;
     return false;
   };
   const isMyTask = (t: { responsable_id: string | null; responsable_user_id: string | null; }) => {
     if (!userId) return false;
     if (t.responsable_user_id && t.responsable_user_id === userId) return true;
-    if (currentActeurId && t.responsable_id && t.responsable_id === currentActeurId) return true;
+    if (currentActeurId && !t.responsable_user_id && t.responsable_id && t.responsable_id === currentActeurId) return true;
     return false;
   };
   const canEditAction = (a: ProjectAction) => canEdit || (restrictedWrite && isMyAction(a));
