@@ -1,109 +1,116 @@
-Historique complet des modifications — Plan d'action
-
 ## Objectif
 
-Tracer automatiquement **toutes** les modifications (dates, statuts, avancement, responsables, titres…) faites par les collaborateurs avec droit d'écriture, sur **les actions ET les tâches**, et offrir un historique global du projet avec filtres puissants.
+Ajouter un troisième niveau d'accès aux **Plans d'action** d'un projet, à mi-chemin entre lecture seule et écriture complète :
 
----
+> **Écriture limitée** — l'utilisateur peut modifier **uniquement les actions (et leurs tâches)** dans lesquelles il est désigné comme **responsable** (responsable_id / responsable_user_id sur les 3 slots, ou responsable d'une tâche enfant).
 
-## 1. Extension du modèle de données
+## Logique fonctionnelle
 
-La table `project_action_history` ne trace aujourd'hui que les actions. On l'étend pour couvrir aussi les tâches, dans une table unifiée pour faciliter les filtres globaux.
+### Nouveau niveau d'accès `restricted_write`
 
-Modifications sur `project_action_history` :
+Trois niveaux sur `project_collaborators.access_level` :
 
-- Ajout colonne `task_id uuid NULL` (référence `project_tasks` ON DELETE CASCADE)
-- Ajout colonne `entity_type text NOT NULL DEFAULT 'action'` (`'action'` | `'task'`)
-- `action_id` reste obligatoire (pour une tâche on stocke l'action parente → permet le filtre "par numéro d'action")
-- Index sur `(action_id, created_at DESC)` et `(user_id, created_at DESC)`
 
-Nouveau trigger `trg_log_project_task_changes` sur `project_tasks` (AFTER UPDATE) qui journalise les champs : `title, description, statut, avancement, echeance, date_debut, responsable_id, responsable_user_id, ordre`. Il insère dans `project_action_history` avec `entity_type='task'`, `task_id=NEW.id`, `action_id=NEW.action_id`.
+| Niveau                         | Lecture détail | Édition actions                 | Édition tâches                                                     | Création/suppression |
+| ------------------------------ | -------------- | ------------------------------- | ------------------------------------------------------------------ | -------------------- |
+| `read`                         | ✅ toutes       | ❌                               | ❌                                                                  | ❌                    |
+| `restricted_write` *(nouveau)* | ✅ toutes       | ✅ **uniquement si responsable** | ✅ **uniquement si responsable de la tâche ou de l'action parente** | ❌ (jamais)           |
+| `write`                        | ✅ toutes       | ✅ toutes                        | ✅ toutes                                                           | ❌                    |
 
-Le trigger existant `trg_log_project_action_changes` reste, on ajoute juste `entity_type='action'` dans son INSERT.
 
-Aucune perte d'historique existant (rétro-compatible).
+Le **responsable du projet** et les **Admin/RMQ** gardent l'accès complet (inchangé).
 
-## 2. Numéro d'action visible
+### Règle "responsable d'une action"
 
-Chaque action reçoit un numéro stable basé sur son champ `ordre` (déjà existant) → affiché comme `#A1`, `#A2`… dans la liste d'actions, dans le Gantt, et dans l'historique. Les tâches deviennent `#A2.T1`, `#A2.T2`… (ordre de la tâche dans son action).
+Un utilisateur est considéré responsable d'une action si **au moins une** de ces conditions est vraie :
 
-Pas de migration nécessaire — calculé côté front à partir de `ordre`.
+- `responsable_user_id`, `responsable_user_id_2` ou `responsable_user_id_3` = son `user_id`
+- son `acteur_id` (lien profil → acteur) correspond à `responsable_id`, `responsable_id_2` ou `responsable_id_3`
 
-## 3. Nouveau composant : Historique global du projet
+Idem pour les tâches (`responsable_user_id` ou `responsable_id`).
 
-Remplace l'actuel `ProjectActionHistory` (limité à 1 action) par un composant enrichi `ProjectHistoryDialog` ouvert depuis :
+### Effets visibles dans l'UI
 
-- un bouton **"Historique du projet"** dans le header du Plan d'action
-- l'icône horloge existante sur chaque action (pré-filtrée sur cette action)
+Pour un utilisateur en `restricted_write` :
 
-### UI
+1. **Liste des actions** : badge discret "Mes actions" sur les lignes éditables ; cadenas grisé sur les autres.
+2. **Boutons d'édition** (statut, avancement, échéance, responsables, description) : actifs seulement sur les actions/tâches assignées ; désactivés ailleurs avec un tooltip *"Vous ne pouvez modifier que les actions dont vous êtes responsable"*.
+3. **Boutons "Ajouter action / tâche / supprimer"** : masqués.
+4. **Filtre rapide** "Mes actions uniquement" pré-coché (optionnel).
+5. **Gestion des collaborateurs** (`ProjectCollaborators`) : nouveau choix dans le `Select` d'access level avec libellé **"Écriture limitée — uniquement ses actions"**.
 
-Dialog plein écran (max-w-5xl), structure :
+### Sécurité (back-end)
+
+Mise à jour des **policies RLS** sur `project_actions` et `project_tasks` :
+
+- `UPDATE` autorisé si :
+  - admin / rmq / super_admin **OU**
+  - responsable du projet **OU**
+  - collaborateur `write` **OU**
+  - collaborateur `restricted_write` **ET** utilisateur listé comme responsable de la ligne (ou de l'action parente pour une tâche)
+- `INSERT` / `DELETE` : inchangés (jamais autorisés en `restricted_write`).
+
+Création d'une fonction SECURITY DEFINER `is_action_responsible(_action_id, _user_id)` et `is_task_responsible(_task_id, _user_id)` pour éviter la récursion RLS.
+
+## Détails techniques
+
+### 1. Migration SQL
 
 ```text
-┌─ Historique — [Nom projet] ─────────────────────[X]┐
-│ Filtres (sticky en haut)                            │
-│  [Recherche action #N° ou titre]  [User ▼]          │
-│  [Type: Action/Tâche/Tous ▼]  [Champ ▼]             │
-│  [Période: 7j / 30j / 90j / Tout]   [Export CSV]    │
-├─────────────────────────────────────────────────────┤
-│ Timeline groupée par jour                           │
-│  ── 6 mai 2026 ──                                   │
-│   ⏱ 14:32  Marie D.  #A2 "Audit fournisseur"        │
-│            Statut: En cours → Terminée              │
-│   ⏱ 11:08  Karim B.  #A2.T3 "Vérifier livraison"    │
-│            Échéance: 12/05 → 15/05                  │
-│  ── 5 mai 2026 ──                                   │
-│   …                                                 │
-└─────────────────────────────────────────────────────┘
+- Pas de changement de schéma : la colonne access_level reste TEXT.
+- Ajout (idempotent) d'un CHECK : access_level IN ('read','restricted_write','write')
+- Création des fonctions :
+    public.is_action_responsible(_action_id uuid, _user_id uuid) RETURNS bool
+    public.is_task_responsible(_task_id uuid, _user_id uuid) RETURNS bool
+  Elles vérifient les 3 slots responsable_user_id + jointure profiles.acteur_id
+  vs responsable_id sur project_actions / project_tasks.
+- Remplacement des policies UPDATE existantes sur project_actions et project_tasks
+  pour intégrer la branche restricted_write.
 ```
 
-### Filtres
+### 2. Front-end
 
-- **Recherche libre** : numéro (`A2`, `2.3`) ou titre d'action/tâche
-- **Utilisateur** : dropdown des collaborateurs ayant modifié quelque chose sur ce projet
-- **Type** : Toutes / Actions seules / Tâches seules
-- **Champ modifié** : Statut / Échéance / Avancement / Responsable / Tous
-- **Période** : 7j / 30j / 90j / Tout
+`**ProjectDetail.tsx**` — calcul `canEdit` enrichi :
 
-Filtres combinables, état persisté en URL (`?user=...&q=A2`).
+```text
+const myCollabLevel = myCollab?.access_level;  // 'read' | 'restricted_write' | 'write'
+const canEditAll = isAdmin || isResponsable || myCollabLevel === 'write' || (!isPrivate && baseCanEdit);
+const canEditOwn = canEditAll || myCollabLevel === 'restricted_write';
+```
 
-### Améliorations UX
+Passage de deux props à `ProjectActionsList` : `canEditAll`, `canEditOwn` + `currentUserId`, `currentActeurId`.
 
-- Regroupement par jour avec séparateurs date relative (« Aujourd'hui », « Hier », « il y a 3 j »)
-- Avatar + nom de l'auteur (jointure `profiles`)
-- Badge couleur par type de champ (statut=primary, échéance=amber, responsable=violet…)
-- Affichage humain des valeurs (statuts traduits, dates `dd MMM`, responsables = nom et non UUID)
-- Numéro d'action cliquable → scroll/ouverture de l'action correspondante
-- Pagination serveur (50 lignes, bouton "Charger plus")
-- Export CSV de l'historique filtré (nom du projet, période)
-- Compteurs en tête : « 128 modifications · 6 contributeurs · 14 actions impactées »
+`**ProjectActionsList.tsx**` — helper :
 
-## 4. Sécurité / écriture
+```text
+const isMine = (a) =>
+  [a.responsable_user_id, a.responsable_user_id_2, a.responsable_user_id_3].includes(userId)
+  || [a.responsable_id, a.responsable_id_2, a.responsable_id_3].includes(myActeurId);
 
-- Les triggers sont `SECURITY DEFINER` — la journalisation reste fiable même si l'utilisateur n'a pas de droit direct sur `project_action_history`.
-- La policy SELECT existante (`Authenticated users can read history`) est conservée — la visibilité côté UI est filtrée par projet (jointure sur `project_actions.project_id`).
-- Aucun changement de logique métier d'écriture : les collaborateurs en mode écriture continuent d'utiliser les UI existantes ; leurs modifications sont automatiquement tracées par les triggers.
+const canEditAction = (a) => canEditAll || (canEditOwn && isMine(a));
+const canEditTask   = (t, parent) => canEditAll || (canEditOwn && (isTaskMine(t) || isMine(parent)));
+```
 
-## 5. Détails techniques
+Tous les `disabled` / rendu conditionnel des boutons utilisent `canEditAction(a)` au lieu de `canEdit`.
 
-**Migration** (`supabase/migrations/...`) idempotente :
+`**ProjectCollaborators.tsx**` — ajouter l'option dans le Select avec description en sous-texte.
 
-- `ALTER TABLE project_action_history ADD COLUMN IF NOT EXISTS task_id uuid REFERENCES project_tasks(id) ON DELETE CASCADE`
-- `ALTER TABLE project_action_history ADD COLUMN IF NOT EXISTS entity_type text NOT NULL DEFAULT 'action'`
-- Index `idx_pah_action_created`, `idx_pah_user_created`, `idx_pah_task`
-- `CREATE OR REPLACE FUNCTION log_project_task_changes()` + `DROP TRIGGER IF EXISTS … / CREATE TRIGGER trg_log_project_task_changes`
-- Mise à jour de `log_project_action_changes()` pour positionner `entity_type='action'`
+### 3. Cohérence existante
 
-**Fichiers à modifier**
+- `canDelete` reste basé sur Admin/RMQ + Responsable projet (inchangé).
+- Les commentaires : `canComment` reste lié à la lecture (inchangé).
+- L'historique d'audit (`log_project_action_changes`) continue de tracer toute modification.
 
-- `src/components/projects/ProjectActionHistory.tsx` → renommé/étendu en `ProjectHistoryDialog.tsx` (mode `actionId` ou `projectId`)
-- `src/components/projects/ProjectActionsList.tsx` → bouton "Historique du projet" + numérotation `#A{ordre}` affichée
-- `src/components/projects/ProjectGanttChart.tsx` → ajoute aussi le `#A{n}` (déjà partiellement fait)
-- `src/integrations/supabase/types.ts` régénéré automatiquement après migration
+## Hors-scope
 
-**Sans casse** : aucun composant existant ne dépend de la signature actuelle au-delà de `ProjectActionHistory` (utilisé uniquement dans `ProjectActionsList`).
+- Pas de migration des données existantes : tous les collaborateurs `read`/`write` actuels gardent leur niveau.
+- Pas de modification du module Projets en dehors de l'onglet Actions/Tâches.
+- Pas de changement sur le Gantt (lecture seule pour tous, déjà le cas).
 
----
+## Livrables
 
-Confirmez et j'implémente.
+1. Migration SQL (fonctions + policies + check constraint).
+2. `ProjectDetail.tsx` : calcul des deux niveaux + props.
+3. `ProjectActionsList.tsx` : helpers `isMine`, `canEditAction`, `canEditTask` + application sur tous les contrôles d'édition.
+4. `ProjectCollaborators.tsx` : option "Écriture limitée" dans le Select.
+5. Badge UI "Mes actions" et tooltip de blocage.
