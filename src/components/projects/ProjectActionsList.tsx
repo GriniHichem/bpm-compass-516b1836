@@ -1368,7 +1368,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                                   </span>
                                 );
                               })()}
-                              {canEdit && !isFrozen && task.statut !== "termine" ? (
+                              {taskEditable && !isFrozen && task.statut !== "termine" ? (
                                 <Input
                                   type="date"
                                   className={`h-6 w-28 text-[10px] border-dashed ${taskDateStatus.status !== "ok" ? "border-orange-400/60" : ""}`}
