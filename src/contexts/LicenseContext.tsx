@@ -20,9 +20,10 @@ const LicenseContext = createContext<LicenseInfo>({
   status: "trial",
   daysRemaining: 30,
   isReadOnly: false,
+  unlimited: false,
   alertMessage: null,
   alertLevel: null,
-  activateLicense: async () => {},
+  activateLicense: async () => ({ unlimited: false, expires_at: null }),
 });
 
 export const useLicense = () => useContext(LicenseContext);
