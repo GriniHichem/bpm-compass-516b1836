@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.check-deadlines]
 verify_jwt = false
+
+[functions.activate-license]
+verify_jwt = false
