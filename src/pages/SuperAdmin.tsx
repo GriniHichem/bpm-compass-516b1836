@@ -499,9 +499,8 @@ export default function SuperAdmin() {
 }
 
 function LicenseTab({ form, handleChange }: { form: any; handleChange: (key: string, value: string) => void }) {
-  const { status, daysRemaining, activateLicense } = useLicense();
+  const { status, daysRemaining, unlimited, activateLicense } = useLicense();
   const [licenseCode, setLicenseCode] = useState("");
-  const [licenseExpiry, setLicenseExpiry] = useState(form.license_expires_at || "");
   const [activating, setActivating] = useState(false);
 
   const statusConfig = {
@@ -514,14 +513,14 @@ function LicenseTab({ form, handleChange }: { form: any; handleChange: (key: str
   const cfg = statusConfig[status];
 
   const handleActivate = async () => {
-    if (!licenseCode || !licenseExpiry) {
-      toast.error("Veuillez saisir le code de licence et la date d'expiration");
+    if (!licenseCode) {
+      toast.error("Veuillez saisir le code de licence");
       return;
     }
     setActivating(true);
     try {
-      await activateLicense(licenseCode, licenseExpiry);
-      toast.success("Licence activée avec succès !");
+      const res = await activateLicense(licenseCode);
+      toast.success(res.unlimited ? "Licence illimitée activée !" : `Licence activée — expire le ${res.expires_at}`);
       setLicenseCode("");
     } catch (err: any) {
       toast.error(err.message);
@@ -545,18 +544,21 @@ function LicenseTab({ form, handleChange }: { form: any; handleChange: (key: str
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium">Statut :</span>
             <Badge className={cfg.color}>{cfg.label}</Badge>
+            {unlimited && <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">Illimitée</Badge>}
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium">Jours restants :</span>
-            <span className="text-lg font-bold">{daysRemaining}</span>
-          </div>
+          {!unlimited && (
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium">Jours restants :</span>
+              <span className="text-lg font-bold">{daysRemaining}</span>
+            </div>
+          )}
           {form.license_activated_at && (
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium">Activée le :</span>
               <span className="text-sm text-muted-foreground">{form.license_activated_at}</span>
             </div>
           )}
-          {form.license_expires_at && (
+          {!unlimited && form.license_expires_at && (
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium">Expire le :</span>
               <span className="text-sm text-muted-foreground">{form.license_expires_at}</span>
@@ -580,14 +582,16 @@ function LicenseTab({ form, handleChange }: { form: any; handleChange: (key: str
             <Key className="h-4 w-4" />
             Activer / Renouveler la licence
           </CardTitle>
-          <CardDescription>Saisissez votre code de licence (32 caractères) pour activer</CardDescription>
+          <CardDescription>
+            Saisissez votre code de licence (32 caractères). La durée est déterminée automatiquement par le serveur (1 an ou illimitée selon le code).
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Code de licence</Label>
             <Input
               value={licenseCode}
-              onChange={(e) => setLicenseCode(e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 32))}
+              onChange={(e) => setLicenseCode(e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 32))}
               placeholder="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
               maxLength={32}
               className="font-mono tracking-wider"
@@ -596,18 +600,9 @@ function LicenseTab({ form, handleChange }: { form: any; handleChange: (key: str
               {licenseCode.length}/32 caractères
             </p>
           </div>
-          <div className="space-y-2">
-            <Label>Date d'expiration</Label>
-            <Input
-              type="date"
-              value={licenseExpiry}
-              onChange={(e) => setLicenseExpiry(e.target.value)}
-              min={format(new Date(), "yyyy-MM-dd")}
-            />
-          </div>
           <Button
             onClick={handleActivate}
-            disabled={activating || licenseCode.length !== 32 || !licenseExpiry}
+            disabled={activating || licenseCode.length !== 32}
             className="w-full"
           >
             <Key className="h-4 w-4 mr-2" />
