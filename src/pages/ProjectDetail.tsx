@@ -394,7 +394,9 @@ export default function ProjectDetail() {
             <ProjectActionsList
               projectId={projectId!}
               projectDeadline={project.date_fin}
-              canEdit={canEdit}
+              canEdit={canEditAll}
+              restrictedWrite={!canEditAll && canEditOwn}
+              currentActeurId={profile?.acteur_id ?? null}
               canDelete={canDelete}
               canReadDetail={canReadDetail}
               canComment={canComment}
