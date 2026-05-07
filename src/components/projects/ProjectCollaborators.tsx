@@ -265,9 +265,10 @@ export function ProjectCollaborators({ projectId, responsableUserId, visibility,
                   </SelectContent>
                 </Select>
                 <Select value={selectedAccess} onValueChange={setSelectedAccess}>
-                  <SelectTrigger className="w-24 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="read">Lecture</SelectItem>
+                    <SelectItem value="restricted_write">Écriture limitée</SelectItem>
                     <SelectItem value="write">Écriture</SelectItem>
                   </SelectContent>
                 </Select>
