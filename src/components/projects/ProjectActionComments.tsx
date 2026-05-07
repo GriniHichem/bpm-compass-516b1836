@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,9 @@ import { toast } from "sonner";
 import { Send, Pencil, Trash2, X, Check, Lock } from "lucide-react";
 import { formatDistanceToNow, parseISO, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
+import { CommentToolbar } from "@/components/projects/CommentToolbar";
+import { CommentRenderer } from "@/components/projects/CommentRenderer";
+import { extractMentionedUserIds } from "@/lib/commentTags";
 
 interface Comment {
   id: string;
