@@ -1452,7 +1452,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                     </div>
                     {notesOpen === action.id && (
                       <div className="mt-2">
-                        <ProjectActionComments actionId={action.id} canComment={canComment} isAdmin={isAdmin} projectId={projectId} projectResponsableUserId={isResponsable ? user?.id : undefined} actionResponsableUserId={action.responsable_user_id} />
+                        <ProjectActionComments actionId={action.id} canComment={canComment} isAdmin={isAdmin} projectId={projectId} projectResponsableUserId={isResponsable ? user?.id : undefined} actionResponsableUserId={action.responsable_user_id} canEdit={canEdit} />
                       </div>
                     )}
                   </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,9 @@ import { toast } from "sonner";
 import { Send, Pencil, Trash2, X, Check, Lock } from "lucide-react";
 import { formatDistanceToNow, parseISO, differenceInMinutes } from "date-fns";
 import { fr } from "date-fns/locale";
+import { CommentToolbar } from "@/components/projects/CommentToolbar";
+import { CommentRenderer } from "@/components/projects/CommentRenderer";
+import { extractMentionedUserIds } from "@/lib/commentTags";
 
 interface Comment {
   id: string;
@@ -36,10 +39,12 @@ interface Props {
   projectId?: string;
   projectResponsableUserId?: string | null;
   actionResponsableUserId?: string | null;
+  canEdit?: boolean;
 }
 
-export function ProjectActionComments({ actionId, canComment, isAdmin, projectId, projectResponsableUserId, actionResponsableUserId }: Props) {
+export function ProjectActionComments({ actionId, canComment, isAdmin, projectId, projectResponsableUserId, actionResponsableUserId, canEdit = false }: Props) {
   const { user } = useAuth();
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [newContent, setNewContent] = useState("");
@@ -107,17 +112,64 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
 
   useEffect(() => { fetchComments(); }, [actionId]);
 
+  const insertToken = (token: string) => {
+    const ta = textareaRef.current;
+    if (!ta) {
+      setNewContent((prev) => (prev ? `${prev} ${token} ` : `${token} `));
+      return;
+    }
+    const start = ta.selectionStart ?? newContent.length;
+    const end = ta.selectionEnd ?? newContent.length;
+    const before = newContent.slice(0, start);
+    const after = newContent.slice(end);
+    const sep = before && !before.endsWith(" ") ? " " : "";
+    const next = `${before}${sep}${token} ${after}`;
+    setNewContent(next);
+    requestAnimationFrame(() => {
+      const pos = (before + sep + token + " ").length;
+      ta.focus();
+      ta.setSelectionRange(pos, pos);
+    });
+  };
+
   const handleSubmit = async () => {
     if (!newContent.trim() || !user) return;
     setSubmitting(true);
-    const { error } = await supabase.from("project_action_comments").insert({
-      action_id: actionId,
-      user_id: user.id,
-      content: newContent.trim(),
-      is_private: isPrivate,
-    });
+    const { data: inserted, error } = await supabase
+      .from("project_action_comments")
+      .insert({
+        action_id: actionId,
+        user_id: user.id,
+        content: newContent.trim(),
+        is_private: isPrivate,
+      })
+      .select("id")
+      .single();
     setSubmitting(false);
-    if (error) { toast.error(error.message); return; }
+    if (error || !inserted) { toast.error(error?.message ?? "Erreur"); return; }
+
+    // Mentions : enregistrer + notifier (fire-and-forget)
+    const mentioned = extractMentionedUserIds(newContent).filter((id) => id !== user.id);
+    if (mentioned.length > 0) {
+      const commentId = (inserted as any).id as string;
+      const projectPath = projectId ? `/actions/${projectId}` : "/actions";
+      void supabase.from("comment_mentions").insert(
+        mentioned.map((uid) => ({ comment_id: commentId, mentioned_user_id: uid }))
+      );
+      void supabase.from("notifications").insert(
+        mentioned.map((uid) => ({
+          user_id: uid,
+          type: "mention",
+          title: "Vous avez été mentionné",
+          message: newContent.trim().replace(/\[[^\]]+\|([^\]]+)\]/g, "$1").slice(0, 200),
+          entity_type: "project_action_comments",
+          entity_id: commentId,
+          entity_url: projectPath,
+          channel: "both",
+        }))
+      );
+    }
+
     setNewContent("");
     setIsPrivate(false);
     fetchComments();
@@ -248,7 +300,7 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground whitespace-pre-wrap mt-0.5">{comment.content}</p>
+              <CommentRenderer content={comment.content} />
             )}
 
             {editingId !== comment.id && (
@@ -280,6 +332,7 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
         <div className="space-y-2">
           <div className="flex gap-2 items-end">
             <Textarea
+              ref={textareaRef}
               placeholder="Ajouter un commentaire..."
               value={newContent}
               onChange={e => setNewContent(e.target.value)}
@@ -290,6 +343,14 @@ export function ProjectActionComments({ actionId, canComment, isAdmin, projectId
               <Send className="h-3.5 w-3.5" />
             </Button>
           </div>
+          {projectId && (
+            <CommentToolbar
+              projectId={projectId}
+              actionId={actionId}
+              canCreateTask={canEdit}
+              onInsert={insertToken}
+            />
+          )}
           {(() => {
             const projResp = resolvedProjectResp ?? projectResponsableUserId;
             const canMarkPrivate = isAdmin
