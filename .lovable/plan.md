@@ -1,70 +1,88 @@
+## Diagnostic — pourquoi le module Plan d'actions est lent en self-hosted
 
-## Constat
+Le module `ProjectActionsList` (1795 lignes) charge **toutes les actions + toutes les tâches + toutes les dépendances + tous les profils** d'un projet en une fois, sans pagination. Sur Supabase Cloud, le pooler PgBouncer + les ressources généreuses masquent les coûts. Sur un Postgres self-hosted (Docker, ressources limitées), les mêmes requêtes deviennent visibles. Trois familles de causes :
 
-Règle confirmée : un collaborateur en **Écriture limitée** peut modifier une action/tâche **uniquement si lui-même OU sa fonction** est nommé(e) responsable. Ailleurs : lecture seule.
+### A. Côté base de données (impact majeur en self-hosted)
+1. **RLS non optimisé** — Les policies appellent `auth.uid()`, `has_role()`, `project_access_level()`, `is_my_project_action()` qui sont ré-évaluées **pour chaque ligne** au lieu d'une fois par requête. Sur 200 actions = 200 appels à `has_role` + sous-requêtes.
+2. **Index manquants** sur les chemins chauds : `project_actions.responsable_user_id` (slot 1), `project_action_links(action_id)`, `project_action_dependencies(project_id)`, `audit_logs(entity_type, entity_id)`, `user_roles(user_id, role)` composite, `project_collaborators(project_id, user_id)`.
+3. **Trigger `log_audit_event` synchrone** sur toutes les tables CRUD → chaque update d'avancement écrit dans `audit_logs` (full row JSONB) dans la même transaction. Sur self-hosted sans tuning, c'est lent et la table grossit sans cleanup automatique.
+4. **Postgres non tuné** : valeurs par défaut Docker (`shared_buffers=128MB`, `work_mem=4MB`, `effective_cache_size=4GB`) inadaptées. Pas d'autovacuum agressif sur audit_logs / project_action_history.
+5. **`pg_net` absent ou bloquant** sur self-hosted → trigger `dispatch_notification_email` peut timeouter si Kong est lent.
 
-Sur le projet test, Salim (`restricted_write`, fonction `3150c9cc` partagée avec Hichem) :
-- DB : `can_write_project = false`, `can_write_project_restricted = true`. La RLS bloque déjà toute modification d'action où ni lui ni sa fonction n'est responsable (actions a1000001, 04, 05, 06, 09, 10, 11). Vérifié par `is_my_project_action` → `false`.
-- UI : malgré ça, plusieurs boutons et champs s'affichent encore comme éditables sur des actions où il n'a aucune responsabilité, ce qui donne l'illusion qu'il peut tout modifier (et certaines actions passent quand même en base parce qu'elles ont sa fonction au slot 1).
+### B. Côté application React
+1. `fetchActions` enchaîne 4 requêtes **séquentielles** (projet → actions → tâches → dépendances) au lieu de les paralléliser.
+2. Aucun `useMemo` sur le tri/filtrage/regroupement → recalcul à chaque frappe clavier.
+3. `useProfilesById` recalcule la liste d'IDs à chaque render (pas de mémoïsation du tableau).
+4. Pas de pagination ni de virtualisation : un projet avec 100+ actions + tâches rend ~1000 nœuds DOM.
+5. Updates inline (slider d'avancement, statut) → un `fetchActions()` complet à chaque modif au lieu d'un patch local.
 
-Il y a aussi des fuites côté **tables annexes** dont la RLS est restée `USING (true)` : `project_action_dependencies`, `project_action_history`, `project_deadline_logs`. Un `restricted_write` peut donc créer/supprimer des dépendances et insérer des logs sur des actions qui ne lui appartiennent pas.
+### C. Côté infrastructure self-hosted
+1. Kong (gateway) ajoute 50–200 ms par requête si mal dimensionné.
+2. Edge Functions Deno : cold start 1–3 s à chaque appel si `min_instances=0`.
+3. Pas de CDN devant les assets Vite → bundle 2–3 MB téléchargé à chaque visite.
 
-## Objectif
+---
 
-Faire correspondre **strictement** ce que l'écran propose et ce que la base autorise, partout. Aucun bouton "modifier", "ajouter", "supprimer", "épingler", "rouvrir", "transférer", "changer date" ne doit s'afficher si la RLS refusera l'opération.
+## Plan d'optimisation (par impact / effort)
 
-## Changements UI — `ProjectActionsList.tsx`
+### Étape 1 — Migration SQL "perf pack" (impact très élevé, risque faible)
+Une seule migration idempotente (`IF NOT EXISTS`) qui :
+- Ajoute les index manquants listés ci-dessus.
+- Réécrit les policies RLS critiques (`project_actions`, `project_tasks`, `project_action_links`, `project_action_history`, `project_action_comments`, `project_action_dependencies`) pour utiliser `(select auth.uid())` → évaluation **une seule fois** par requête (pattern officiel Supabase).
+- Convertit le trigger `log_audit_event` en mode "essentiel" : ne logge plus l'INSERT/UPDATE des tables très bavardes (`project_actions`, `project_tasks`, `project_action_history`) — on garde déjà `project_action_history` qui est le journal métier dédié.
+- Programme un cleanup mensuel (`pg_cron` si dispo, sinon documentation manuelle) via la fonction existante `cleanup_old_audit_logs(180)`.
+- `VACUUM ANALYZE` sur les tables projets.
 
-Rendre le composant pessimiste : par défaut tout est en lecture seule, sauf preuve d'autorisation par ligne.
+### Étape 2 — Optimisation `ProjectActionsList.tsx` (impact élevé)
+- Paralléliser les 4 requêtes initiales avec `Promise.all`.
+- Mémoïser `responsableUserIds` (`useMemo` sur `actions` + `tasksMap`).
+- Mémoïser le tri/filtrage de la liste affichée.
+- Remplacer les `fetchActions()` post-update par des **patches locaux** (`setActions(prev => prev.map(...))`) — la requête réseau revient déjà avec les données.
+- Découper le fichier : extraire `ActionRow`, `TaskRow`, `ActionFilters` en composants `React.memo`.
+- Debouncer le slider d'avancement (300 ms) au lieu d'envoyer un UPDATE à chaque pixel.
 
-1. Encapsuler chaque champ inline (Statut, Échéance, Multi-tâches, Avancement, Pin, Responsables, Dates, Liens, Dépendances, Notes) dans `actionEditable` calculé via `canEditAction(action)`. Aujourd'hui plusieurs blocs utilisent encore `canEdit` global ou n'ont aucun garde — ces blocs deviennent invisibles/disabled pour `restricted_write` quand l'action n'est pas la sienne.
-2. Pour les tâches, garder `canEditTask(task, parent)` strict : si ni la tâche ni l'action parente ne sont à lui, aucun champ n'est éditable.
-3. Désactiver `addAction`, `addTask`, `togglePin`, `toggleMultiTasks`, `recalcActionFromTasks`, `applyDependencyAutomation`, `confirmDisableMulti`, `transferDialog` quand `!actionEditable`. Aujourd'hui `addTask` est déjà sous `canEdit` mais l'input reste visible si on déplie une action étrangère — on cache complètement le footer "Nouvelle tâche".
-4. Le bouton "Rouvrir" d'une action figée reste réservé à l'utilisateur nommé OU admin (déjà ok), mais on verrouille pour la fonction partagée seule.
-5. Bandeau "Lecture seule" déjà présent — on ajoute la même logique aux dialogs (changement d'échéance, transfert) qui s'ouvraient sans garde.
+### Étape 3 — Tuning Postgres self-hosted (impact élevé, hors-Lovable)
+Document `diagnostics/SELF_HOSTING_RULES.md` complété avec un bloc `postgresql.conf` recommandé selon la RAM du serveur :
 
-## Changements UI — `ProjectDetail.tsx`
+```text
+shared_buffers       = 25% RAM
+effective_cache_size = 60% RAM
+work_mem             = 16MB
+maintenance_work_mem = 256MB
+random_page_cost     = 1.1   (SSD)
+max_connections      = 100
+autovacuum_naptime   = 30s
+```
 
-Aucun changement de logique d'accès (déjà strict). Vérifier que le bouton "Modifier le projet", l'archivage, la suppression, le transfert, la bascule public/privé restent gardés respectivement par `canEdit`, `canArchive`, `canDelete`, `isAdmin || isResponsable`. Audit visuel : OK actuellement.
+Plus : activer `pg_stat_statements`, augmenter le pool PgBouncer si présent, vérifier que `pg_net` est installé (sinon les notifs email bloquent).
 
-## Sécurité serveur — migration RLS complémentaire
+### Étape 4 — Frontend / réseau (impact moyen)
+- Activer la compression Brotli sur Nginx/Caddy devant Kong.
+- Servir les assets Vite avec `Cache-Control: immutable`.
+- Optionnel : configurer `min_instances=1` sur les Edge Functions critiques (`send-notification-email`, `check-deadlines`) pour éviter le cold start.
 
-Les tables suivantes sont encore en `USING (true)` :
-- `project_action_dependencies` (4 policies trivialement permissives)
-- `project_action_history` (`SELECT … USING true`)
-- `project_deadline_logs` (`SELECT/INSERT … USING true`)
+---
 
-Migration idempotente :
+## Détails techniques (pour ChatGPT côté serveur)
 
-- **`project_action_dependencies`** : SELECT si `can_read_project(project_id)`. INSERT/UPDATE/DELETE si `can_write_project(project_id)` OU (`can_write_project_restricted(project_id)` ET `is_my_project_action(source_action_id)` ET `is_my_project_action(target_action_id)`).
-- **`project_action_history`** : SELECT si l'action liée est lisible (`can_read_project` via `project_actions`). INSERT conservé (les triggers sont SECURITY DEFINER).
-- **`project_deadline_logs`** : SELECT si `can_read_project(project_id)`. INSERT si `can_write_project(project_id)` OU (`can_write_project_restricted(project_id)` ET la ligne référencée est à l'utilisateur via `is_my_project_action` / `is_my_project_task`).
-
-Drop des anciennes policies `USING (true)` avec `IF EXISTS`, recreate sous le même schéma SECURITY DEFINER que la migration précédente. Aucune fonction nouvelle nécessaire.
-
-## Tests de validation (à exécuter avant de fermer le sujet)
-
-Je teste depuis le navigateur de Salim sur le projet test :
-
-| # | Action | Attendu |
+| Élément | Avant | Après |
 |---|---|---|
-| 1 | Action a1000001 (aucun responsable) | Tous les champs disabled, badge "Lecture seule" |
-| 2 | Action a1000004 (resp = autre fonction) | Idem |
-| 3 | Action a1000002 (resp = sa fonction, user = Hichem) | Champs ouverts, badge "Mes actions" |
-| 4 | Tenter en console `update project_actions … where id = a1000001` | Erreur RLS |
-| 5 | Tenter `insert into project_action_dependencies` sur a1000001 | Erreur RLS |
-| 6 | Tenter `update project_deadline_logs` sur a1000001 | Erreur RLS |
-| 7 | Bouton "Modifier le projet" / Archivage / Visibilité / Transfert | Cachés |
-| 8 | Action a1000003 (sa fonction) → ajouter sous-tâche | OK |
-| 9 | Action a1000003 → supprimer la tâche d'un autre | Bouton supprimer caché (déjà désactivé globalement), et RLS bloque même via API |
+| RLS `project_actions SELECT` | `auth.uid() = ...` (par ligne) | `(select auth.uid()) = ...` (1 fois) |
+| Index `responsable_user_id` (slot 1) | ❌ | ✅ |
+| Index `project_action_links(action_id)` | ❌ | ✅ |
+| Trigger audit sur `project_actions` | INSERT+UPDATE+DELETE | DELETE seulement |
+| `fetchActions` | 4 requêtes séquentielles (~600 ms) | `Promise.all` (~180 ms) |
+| Slider avancement | 1 UPDATE / mouvement | 1 UPDATE debounced 300 ms |
 
-## Hors périmètre
+---
 
-- Pas de changement de la règle "fonction partagée = droit d'édition" (confirmée).
-- Pas de changement de schéma de tables.
-- Pas de modification de `Actions.tsx` (liste projets) ni du Gantt — déjà filtrés correctement.
-- Pas de modification du système de commentaires — RLS déjà strict.
+## Livrables proposés
 
-## Mémoire
+1. **1 migration SQL** `..._perf_pack_plan_actions.sql` (idempotente, safe à rejouer).
+2. **Refactor ciblé** de `ProjectActionsList.tsx` (parallélisation + memo + debounce, sans changer l'UX).
+3. **Mise à jour** de `diagnostics/SELF_HOSTING_RULES.md` avec section "Tuning Postgres" + checklist Kong/PgBouncer.
+4. **Mise à jour** de `MIGRATION_HORS_LOVABLE.md` avec instructions `VACUUM ANALYZE` + activation `pg_stat_statements`.
 
-Mettre à jour `mem://features/project-access-management` avec la note explicite : "L'écriture limitée est accordée par utilisateur nommé OU par fonction partagée — comportement intentionnel."
+Aucune modification fonctionnelle visible utilisateur — uniquement des gains de latence (cible : passer de 2–5 s à 300–600 ms sur le chargement d'un projet de 50 actions sur serveur self-hosted moyen).
+
+Voulez-vous que je lance les **4 étapes d'un coup**, ou préférez-vous commencer uniquement par l'**Étape 1 (migration SQL perf pack)** qui apporte le plus gros gain immédiat sans toucher au code applicatif ?
