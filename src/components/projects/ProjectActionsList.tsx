@@ -219,22 +219,30 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   const [sortBy, setSortBy] = useState("ordre");
   const [dependencies, setDependencies] = useState<Dependency[]>([]);
 
-  // Resolve real user names for actions/tasks that have a responsable_user_id set
-  const responsableUserIds = [
-    ...actions.flatMap((a) => [a.responsable_user_id, a.responsable_user_id_2, a.responsable_user_id_3]),
-    ...Object.values(tasksMap).flat().map((t) => t.responsable_user_id),
-  ].filter(Boolean) as string[];
+  // Resolve real user names for actions/tasks that have a responsable_user_id set.
+  // Memoized so useProfilesById doesn't re-trigger on every render.
+  const responsableUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    actions.forEach((a) => {
+      if (a.responsable_user_id) ids.add(a.responsable_user_id);
+      if (a.responsable_user_id_2) ids.add(a.responsable_user_id_2);
+      if (a.responsable_user_id_3) ids.add(a.responsable_user_id_3);
+    });
+    Object.values(tasksMap).forEach((ts) => ts.forEach((t) => { if (t.responsable_user_id) ids.add(t.responsable_user_id); }));
+    return Array.from(ids);
+  }, [actions, tasksMap]);
   const { formatName: formatRespUserName } = useProfilesById(responsableUserIds);
 
   const fetchActions = async () => {
-    const { data, error } = await supabase
-      .from("project_actions")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("ordre");
-    if (error) { console.error("Fetch actions error:", error); toast.error("Erreur chargement actions: " + error.message); return; }
-    const acts = (data ?? []).map((d: any) => ({ ...d, multi_tasks: d.multi_tasks ?? false, pinned: d.pinned ?? false, responsable_id_2: d.responsable_id_2 ?? null, responsable_id_3: d.responsable_id_3 ?? null, responsable_user_id_2: d.responsable_user_id_2 ?? null, responsable_user_id_3: d.responsable_user_id_3 ?? null, poids: d.poids ?? null })) as ProjectAction[];
+    // Fetch actions + dependencies in parallel (deps don't depend on actions list)
+    const [actionsRes, depsRes] = await Promise.all([
+      supabase.from("project_actions").select("*").eq("project_id", projectId).order("ordre"),
+      supabase.from("project_action_dependencies").select("*").eq("project_id", projectId),
+    ]);
+    if (actionsRes.error) { console.error("Fetch actions error:", actionsRes.error); toast.error("Erreur chargement actions: " + actionsRes.error.message); return; }
+    const acts = (actionsRes.data ?? []).map((d: any) => ({ ...d, multi_tasks: d.multi_tasks ?? false, pinned: d.pinned ?? false, responsable_id_2: d.responsable_id_2 ?? null, responsable_id_3: d.responsable_id_3 ?? null, responsable_user_id_2: d.responsable_user_id_2 ?? null, responsable_user_id_3: d.responsable_user_id_3 ?? null, poids: d.poids ?? null })) as ProjectAction[];
     setActions(acts);
+    setDependencies((depsRes.data ?? []) as Dependency[]);
 
     const r2 = new Set<string>();
     const r3 = new Set<string>();
@@ -257,20 +265,12 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
         map[t.action_id].push(t as ProjectTask);
       });
       setTasksMap(map);
-      // Weighted progress using centralized helper (uses normalized task progress for multi-task actions)
       const avg = computeProjectProgress(acts, map);
       onProgressChange(avg);
     } else {
       setTasksMap({});
       onProgressChange(0);
     }
-
-    // Fetch dependencies
-    const { data: deps } = await supabase
-      .from("project_action_dependencies")
-      .select("*")
-      .eq("project_id", projectId);
-    setDependencies((deps ?? []) as Dependency[]);
   };
 
   const fetchDeadlineLogs = async () => {
@@ -383,7 +383,12 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
     }
     const { error } = await supabase.from("project_actions").update(updates).eq("id", id);
     if (error) { toast.error(error.message); return; }
-    fetchActions();
+    // Local patch instead of full refetch — recompute project progress locally
+    setActions((prev) => {
+      const next = prev.map((a) => a.id === id ? { ...a, ...updates } as ProjectAction : a);
+      onProgressChange(computeProjectProgress(next as any, tasksMap));
+      return next;
+    });
   };
 
   const deleteAction = async (id: string) => {
@@ -401,7 +406,16 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
     }
     const { error } = await supabase.from("project_tasks").update(updates).eq("id", id);
     if (error) { toast.error(error.message); return; }
-    fetchActions();
+    // Local patch — avoid full refetch
+    setTasksMap((prev) => {
+      const next: Record<string, ProjectTask[]> = { ...prev };
+      const arr = next[task.action_id] ? [...next[task.action_id]] : [];
+      const idx = arr.findIndex((t) => t.id === id);
+      if (idx >= 0) arr[idx] = { ...arr[idx], ...updates } as ProjectTask;
+      next[task.action_id] = arr;
+      onProgressChange(computeProjectProgress(actions as any, next));
+      return next;
+    });
   };
 
   const deleteTask = async (id: string) => {
@@ -644,7 +658,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
     return !isBefore(d, today) && isBefore(d, addDays(today, days + 1));
   };
 
-  const getFilteredActions = () => {
+  const filteredActionsMemo = useMemo(() => {
     return actions
       .filter(a => {
         if (hideTerminees && a.statut === "terminee") return false;
@@ -656,20 +670,19 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
         return true;
       })
       .sort((a, b) => {
-        // Pinned first
         if (a.pinned && !b.pinned) return -1;
         if (!a.pinned && b.pinned) return 1;
-        // Then by sortBy
         if (sortBy === "echeance") {
           if (!a.echeance && !b.echeance) return 0;
           if (!a.echeance) return 1;
           if (!b.echeance) return -1;
           return a.echeance.localeCompare(b.echeance);
         }
-        if (sortBy === "created_at") return 0; // DB already ordered
+        if (sortBy === "created_at") return 0;
         return a.ordre - b.ordre;
       });
-  };
+  }, [actions, hideTerminees, filterStatut, filterEcheance, sortBy, projectDeadline]);
+  const getFilteredActions = () => filteredActionsMemo;
 
   // Stable sequential number per action, based on creation order (ascending).
   // Independent from current sort/filter so the badge never changes for a given action.
