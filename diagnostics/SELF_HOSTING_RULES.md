@@ -329,3 +329,96 @@ NE JAMAIS appeler `supabase.auth.getUser()` ou `getSession()` dans des composant
 [ ] Test refresh page authentifiée < 1 seconde
 ```
 
+
+---
+
+## **16. Tuning Postgres pour Self-Hosting (perf pack Plan d'actions)**
+
+### 16.1 — `postgresql.conf` recommandé
+
+Adapter selon la RAM totale du serveur (valeurs pour 8 GB ; ajuster proportionnellement) :
+
+```conf
+shared_buffers       = 2GB        # ~25% RAM
+effective_cache_size = 5GB        # ~60% RAM
+work_mem             = 16MB       # par opération de tri
+maintenance_work_mem = 256MB      # VACUUM, CREATE INDEX
+random_page_cost     = 1.1        # SSD (4.0 par défaut = HDD)
+max_connections      = 100        # cohérent avec PgBouncer
+autovacuum           = on
+autovacuum_naptime   = 30s
+checkpoint_completion_target = 0.9
+wal_buffers          = 16MB
+```
+
+Redémarrer le conteneur Postgres après modification :
+```bash
+docker compose restart db
+```
+
+### 16.2 — Activer pg_stat_statements (pour profiler les requêtes lentes)
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+-- Top 20 requêtes les plus lentes
+SELECT query, calls, mean_exec_time, total_exec_time
+FROM pg_stat_statements
+ORDER BY mean_exec_time DESC LIMIT 20;
+```
+
+### 16.3 — Maintenance hebdomadaire
+
+```sql
+-- À exécuter chaque semaine (cron ou pg_cron)
+VACUUM ANALYZE public.project_actions;
+VACUUM ANALYZE public.project_tasks;
+VACUUM ANALYZE public.project_action_history;
+VACUUM ANALYZE public.audit_logs;
+SELECT public.cleanup_old_audit_logs(180);  -- purge >180 jours
+```
+
+### 16.4 — Index de performance Plan d'actions (déjà appliqués via migration)
+
+Les index suivants sont créés automatiquement par la migration `_perf_pack_plan_actions.sql` :
+- `idx_project_actions_resp_user`, `idx_project_actions_resp_user_2/3`
+- `idx_project_tasks_resp_user`, `idx_project_tasks_action`
+- `idx_project_action_links_action`
+- `idx_project_action_dependencies_project/source/target`
+- `idx_project_action_comments_action`
+- `idx_project_collaborators_project_user`
+
+### 16.5 — RLS optimisé `(select auth.uid())`
+
+Toutes les policies critiques du module Plan d'actions utilisent désormais
+`(select auth.uid())` au lieu de `auth.uid()`. Postgres évalue alors la
+fonction **une seule fois par requête** (et non par ligne), ce qui peut
+diviser par 5 à 10 le temps d'une requête sur une table contenant 100+ lignes.
+
+**Règle pour toute nouvelle policy RLS** : toujours envelopper `auth.uid()` :
+
+```sql
+-- ❌ Lent (évalué par ligne)
+CREATE POLICY foo ON ma_table FOR SELECT USING (auth.uid() = user_id);
+
+-- ✅ Rapide (évalué une fois)
+CREATE POLICY foo ON ma_table FOR SELECT USING ((select auth.uid()) = user_id);
+```
+
+### 16.6 — Réduire le bruit du trigger `log_audit_event`
+
+Pour les tables très actives (UPDATE fréquents : avancement, statut, slider),
+ne pas attacher le trigger générique `log_audit_event` si un journal métier
+dédié existe déjà (ex. `project_action_history`). Sinon double écriture
+synchrone à chaque UPDATE → ralentit l'UI sur self-hosted.
+
+### 16.7 — Kong / PgBouncer
+
+- Kong : augmenter `KONG_NGINX_WORKER_PROCESSES=auto` et `KONG_MEM_CACHE_SIZE=256m`
+- PgBouncer : `pool_mode=transaction`, `default_pool_size=20`, `max_client_conn=200`
+- Activer la compression Brotli sur Nginx/Caddy devant Kong
+
+### 16.8 — Edge Functions cold start
+
+Pour éviter les cold starts de 1-3 s sur les fonctions critiques
+(`send-notification-email`, `check-deadlines`), configurer un keep-alive
+externe (uptime-kuma, cron `curl`) toutes les 5 minutes.
