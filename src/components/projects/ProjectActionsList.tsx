@@ -916,6 +916,17 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
           </Select>
 
           <Button
+            variant="outline"
+            size="icon"
+            className="h-7 w-7 border-border/40"
+            onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+            title={sortDir === "asc" ? "Tri croissant (plus ancienne d'abord)" : "Tri décroissant (plus récente d'abord)"}
+          >
+            {sortDir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </Button>
+
+
+          <Button
             variant={hideTerminees ? "default" : "outline"}
             size="sm"
             className="h-7 text-[11px] gap-1 px-2.5"
