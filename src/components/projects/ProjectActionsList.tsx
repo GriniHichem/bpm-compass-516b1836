@@ -957,13 +957,14 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
             activeCount={
               (filterStatut !== "all" ? 1 : 0) +
               (filterEcheance !== "all" ? 1 : 0) +
-              (sortBy !== "ordre" ? 1 : 0) +
+              (sortBy !== "echeance" ? 1 : 0) +
               (hideTerminees ? 1 : 0)
             }
             onReset={() => {
               setFilterStatut("all");
               setFilterEcheance("all");
-              setSortBy("ordre");
+              setSortBy("echeance");
+              setSortDir("asc");
               setHideTerminees(false);
             }}
           >
