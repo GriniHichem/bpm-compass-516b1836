@@ -997,14 +997,25 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Trier par</label>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-full h-11"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ordre">Ordre manuel</SelectItem>
-                  <SelectItem value="echeance">Échéance</SelectItem>
-                  <SelectItem value="created_at">Date création</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="flex-1 h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ordre">Ordre manuel</SelectItem>
+                    <SelectItem value="echeance">Échéance</SelectItem>
+                    <SelectItem value="created_at">Date création</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-11 w-11 shrink-0"
+                  onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                  title={sortDir === "asc" ? "Tri croissant" : "Tri décroissant"}
+                >
+                  {sortDir === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
             <Button
               variant={hideTerminees ? "default" : "outline"}
