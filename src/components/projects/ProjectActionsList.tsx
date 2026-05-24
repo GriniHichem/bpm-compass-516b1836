@@ -1411,7 +1411,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                           if (!a.echeance && !b.echeance) return 0;
                           if (!a.echeance) return 1;
                           if (!b.echeance) return -1;
-                          return a.echeance.localeCompare(b.echeance);
+                          return a.echeance.localeCompare(b.echeance) * (sortDir === "asc" ? 1 : -1);
                         }).map((task) => {
                           const ts = TASK_STATUS[task.statut] ?? TASK_STATUS.a_faire;
                           const TaskIcon = ts.icon;
