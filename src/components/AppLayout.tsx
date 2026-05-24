@@ -29,7 +29,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen flex flex-col bg-background">
         <AppNavbar />
         <LicenseBanner />
-        <main className="flex-1 px-4 py-6 md:px-6 lg:px-8 overflow-auto pb-safe">
+        <main className="flex-1 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 overflow-auto pb-safe">
           {children}
         </main>
         {showOnboarding && <OnboardingCarousel onComplete={handleOnboardingComplete} />}

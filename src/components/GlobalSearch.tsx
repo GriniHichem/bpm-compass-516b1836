@@ -132,17 +132,18 @@ export function GlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 h-8 px-3 rounded-md border border-input bg-background text-sm text-muted-foreground hover:bg-accent/50 transition-colors"
+        aria-label="Recherche avancée"
+        className="flex items-center justify-center sm:justify-start gap-2 h-9 w-9 sm:w-auto sm:px-3 rounded-xl sm:rounded-md border border-input bg-background text-sm text-muted-foreground hover:bg-accent/50 transition-colors"
       >
-        <Search className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Recherche avancée…</span>
-        <kbd className="hidden sm:inline-flex h-5 items-center gap-0.5 rounded border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+        <Search className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+        <span className="hidden lg:inline">Recherche avancée…</span>
+        <kbd className="hidden lg:inline-flex h-5 items-center gap-0.5 rounded border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
           ⌘K
         </kbd>
       </button>
 
       <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); else setOpen(true); }}>
-        <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
+        <DialogContent className="max-w-2xl w-[95vw] p-0 gap-0 overflow-hidden">
           {/* Search input */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
             <Search className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -176,7 +177,7 @@ export function GlobalSearch() {
           </div>
 
           {/* Results */}
-          <ScrollArea className="max-h-[400px]">
+          <ScrollArea className="max-h-[60vh] sm:max-h-[400px]">
             {query.length < 2 ? (
               <div className="py-12 text-center text-sm text-muted-foreground">
                 <Search className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />

@@ -351,7 +351,7 @@ export function AppNavbar() {
             {/* Mobile/Tablet hamburger (below lg) */}
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl lg:hidden text-muted-foreground">
+                <Button variant="ghost" size="icon" aria-label="Ouvrir le menu" className="h-9 w-9 rounded-xl lg:hidden text-muted-foreground tap-target">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>

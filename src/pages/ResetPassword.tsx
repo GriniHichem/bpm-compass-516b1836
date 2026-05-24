@@ -65,7 +65,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 py-6 pb-safe">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Nouveau mot de passe</CardTitle>
@@ -82,9 +82,11 @@ export default function ResetPassword() {
                 placeholder="••••••••"
                 required
                 minLength={8}
+                autoComplete="new-password"
+                className="h-11"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full h-11 tap-target" disabled={loading}>
               {loading ? "Mise à jour..." : "Mettre à jour"}
             </Button>
           </form>

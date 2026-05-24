@@ -1,47 +1,100 @@
-## Objectif
 
-Dans le module Plan d'action, trier les actions et les tâches par **date d'échéance** (et non plus par ordre manuel/date de création), avec un **bouton triangle** permettant de basculer entre tri **croissant** (plus ancienne → plus récente) et **décroissant** (plus récente → plus ancienne).
+# Plan : Q-Processus Mobile-Friendly (3 étapes)
 
-## Constat
+Objectif : rendre toute l'application confortable sur mobile (≤640px) et tablette (641–1023px) **sans modifier la logique métier, les requêtes Supabase, les permissions, les workflows ISO, ni les exports**. Travail strictement frontend / présentation.
 
-`src/components/projects/ProjectActionsList.tsx` :
-- `sortBy` par défaut = `"ordre"` (ligne 219) → ordre manuel
-- Le tri par échéance existe mais uniquement en croissant (lignes 675‑679)
-- Les tâches d'une action multi‑tâches sont triées en dur par échéance croissante (lignes 1383‑1388)
-- Aucun bouton de direction de tri
+Principes directeurs (appliqués partout) :
+- Mobile-first : tout layout part de `flex-col`, puis `sm:` / `md:` / `lg:` ajoutent les colonnes.
+- Cibles tactiles min. 44×44 px (classe `tap-target` déjà existante).
+- Tableaux denses → cartes empilées sur mobile (pattern `responsive-table` déjà présent).
+- Dialogs lourds → `ResponsiveDialog` (déjà en place) → Sheet plein écran sur mobile.
+- Filtres multiples → `FilterDrawer` (déjà en place) → bottom sheet.
+- Aucune modification de : migrations SQL, RLS, edge functions, hooks de données, contextes Auth/Permissions, exports PDF/BPMN, logique de calcul (progress, scores, KPI).
 
-## Changements (frontend uniquement, fichier unique)
+---
 
-`src/components/projects/ProjectActionsList.tsx`
+## Étape 1 — Fondations & navigation mobile
 
-1. **État du tri** (ligne 219)
-   - Changer `useState("ordre")` → `useState("echeance")` (tri par échéance par défaut)
-   - Ajouter `const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")`
+Cible : un utilisateur peut naviguer dans toute l'app au pouce, sans scroll horizontal, sans menu coupé.
 
-2. **Logique de tri des actions** (lignes 672‑683)
-   - Appliquer `sortDir` au comparateur échéance : multiplier le résultat par `sortDir === "asc" ? 1 : -1`
-   - Idem pour `ordre` et `created_at` (cohérence : la direction s'applique à toutes les options)
-   - Conserver la règle « échéances nulles à la fin » dans les deux directions
+1. **Navbar / Sidebar**
+   - `AppNavbar` : compactage du header (logo + burger + bell + avatar), masquer le breadcrumb sur `<sm`.
+   - `AppSidebar` : sur mobile, forcer `collapsible="offcanvas"` (Sheet) au lieu de `icon` ; auto-close après clic sur un lien.
+   - `NotificationBell` + `GlobalSearch` : icône seule sur mobile, Sheet plein écran à l'ouverture.
 
-3. **Tri des tâches** (lignes 1383‑1388)
-   - Utiliser le même `sortDir` pour les tâches d'une action multi‑tâches
+2. **Layout global**
+   - `AppLayout` : padding adaptatif (`px-3 sm:px-6`), respecter `pb-safe` déjà présent (iOS notch).
+   - Ajouter une barre d'action flottante (`FAB` déjà dispo dans `ui/fab.tsx`) sur les pages liste pour l'action principale (Nouveau processus, Nouvelle NC, etc.).
 
-4. **UI bouton triangle** (à côté du Select de tri, lignes 902‑912 desktop et 984‑990 mobile/drawer)
-   - Ajouter un petit `<Button variant="ghost" size="icon">` à droite du Select
-   - Icône : `ChevronUp` (asc) / `ChevronDown` (desc) depuis `lucide-react` (déjà importé pour d'autres usages — sinon ajouter à l'import)
-   - `onClick` : `setSortDir(d => d === "asc" ? "desc" : "asc")`
-   - `title` : `"Tri croissant (plus ancienne d'abord)"` / `"Tri décroissant (plus récente d'abord)"`
-   - Taille compacte cohérente avec les contrôles voisins (`h-7 w-7`)
+3. **Login / Reset password / Onboarding**
+   - Vérifier centrage + tailles d'inputs (min `h-11`) + clavier mobile (autocomplete, inputmode).
+   - `OnboardingCarousel` : swipe horizontal natif, indicateurs plus gros.
 
-5. **Compteur de filtres actifs** (ligne 945)
-   - Ne pas compter `sortDir` comme un filtre actif (c'est un paramètre d'affichage, pas un filtre)
-   - Adapter le test `sortBy !== "ordre"` → `sortBy !== "echeance"` pour refléter le nouveau défaut
+Livrables : `AppNavbar.tsx`, `AppSidebar.tsx`, `AppLayout.tsx`, `Login.tsx`, `ResetPassword.tsx`, `OnboardingCarousel.tsx`, `GlobalSearch.tsx`, `NotificationBell.tsx`.
 
-6. **Reset filtres** (ligne 951)
-   - `setSortBy("ordre")` → `setSortBy("echeance")`
-   - `setSortDir("asc")`
+---
 
-## Hors scope
-- Pas de modification de la vue Gantt / planning plein écran
-- Pas de changement DB, RLS, requêtes Supabase, ni de l'ordre `.order("ordre")` côté fetch (le tri reste purement côté client comme aujourd'hui)
-- Pas de persistance du choix de tri (état local React, comme l'existant)
+## Étape 2 — Listes, tableaux et formulaires
+
+Cible : toutes les pages de données (≈ 30 pages) sont lisibles et actionnables sur mobile.
+
+1. **Pages liste → vue cartes sur mobile**
+   Conversion systématique via le pattern `responsive-table` déjà utilisé :
+   - Processus, Acteurs, Risques, Incidents, Audits, Non-conformités, Actions, Indicateurs, Documents, Compétences, Fournisseurs, Satisfaction client, Enjeux, Utilisateurs, Groupes d'acteurs, Journal, Email logs.
+   - Chaque carte : titre + 2-3 métadonnées + statut badge + menu actions (`DropdownMenu`).
+
+2. **Filtres & tri**
+   - Sur mobile : tous les Selects/Switches regroupés dans `FilterDrawer` (déjà en place sur Actions, à généraliser).
+   - Recherche : champ sticky en haut, `inputmode="search"`.
+
+3. **Formulaires & dialogs**
+   - Remplacer les `Dialog` lourds restants par `ResponsiveDialog` (audit rapide : `ProjectForm`, `FormationDialog`, `SurveyBuilder`, `ProcessElementList` editors, `RootCauseAnalysis`, `ReviewDecisions`, etc.).
+   - Champs en pleine largeur sur mobile, labels au-dessus, boutons d'action en footer sticky.
+   - `RichTextEditor` (TipTap) : toolbar scrollable horizontalement, mode plein écran par défaut sur mobile.
+
+4. **Tabs & sous-navigation**
+   - Tabs longues (ProjectDetail, ProcessDetail, RevueDirection, Competences) : `overflow-x-auto` + `scroll-snap` + indicateur actif visible.
+
+Livrables : composants liste de chaque page ci-dessus + dialogs/forms listés.
+
+---
+
+## Étape 3 — Modules visuels lourds & polish
+
+Cible : les vues complexes (planning, flowchart, BPMN, dashboards, exports) restent utilisables sur mobile, et l'app gagne un niveau de finition.
+
+1. **Vues visuelles complexes**
+   - `ProjectGanttChart` / `ProjectPlanningPage` : sur mobile, vue liste verticale par défaut + bouton "Vue Gantt" qui ouvre plein écran avec pan/zoom tactiles. Pas de modification de la logique de calcul.
+   - `ProcessTasksFlowchart` / `ProcessFlowchartPage` / `BpmnCanvas` : gestes pinch-zoom + pan, mini-map repliable, panneau de détails en bottom sheet.
+   - `FlowchartDetailPanel` / `BpmnPropertiesPanel` : devient Sheet latéral plein écran sur mobile.
+
+2. **Dashboards & graphiques**
+   - `Dashboard`, `DashboardIndicateurs`, `DashboardAuditNC`, `CompetencesDashboard` : grilles `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`, charts `ResponsiveContainer` avec hauteur min adaptée, légendes sous le graphique sur mobile.
+   - `SurveyResults` : tableaux → accordéons par question sur mobile.
+
+3. **Notifications & feedback**
+   - Toasts (`sonner`) repositionnés en haut sur mobile pour éviter le clavier.
+   - Confirmations critiques ("je confirme") avec input + boutons empilés et plus grands.
+
+4. **Polish global**
+   - Audit dark mode sur mobile (contrastes, surfaces).
+   - Audit `prefers-reduced-motion`.
+   - Vérification scroll horizontal nulle part (`overflow-x-hidden` sur `<body>` si nécessaire).
+   - Tests visuels aux 3 breakpoints (375, 768, 1280) sur les pages principales.
+
+Livrables : `ProjectGanttChart.tsx`, `ProjectPlanningPage.tsx`, `ProcessTasksFlowchart.tsx`, `BpmnCanvas.tsx`, `FlowchartDetailPanel.tsx`, `BpmnPropertiesPanel.tsx`, pages Dashboard*, `SurveyResults.tsx`, `index.css` (ajustements tokens mobiles si besoin).
+
+---
+
+## Hors périmètre (garanti non touché)
+
+- Aucune migration SQL, aucune RLS, aucun edge function.
+- Aucun changement dans : `AuthContext`, `useAuth`, permissions, rôles, licences.
+- Aucun changement dans la logique de : progression projet, calculs Risques/Opportunités, NC RCA, indicateurs, revues de direction, exports PDF/BPMN, import CSV.
+- Aucun renommage de route, aucun changement de schéma de données.
+
+## Stratégie de validation
+
+À chaque étape : QA visuelle aux viewports 375px, 768px, 1280px sur les pages clés ; vérifier qu'aucune régression desktop n'apparaît (les classes `sm:` / `md:` préservent l'existant).
+
+Souhaitez-vous démarrer par l'**Étape 1** dès l'approbation, ou ajuster le périmètre d'une étape ?
