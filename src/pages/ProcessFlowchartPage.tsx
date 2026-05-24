@@ -96,15 +96,15 @@ export default function ProcessFlowchartPage() {
   return (
     <div className="h-screen w-screen flex flex-col bg-background overflow-hidden">
       {/* Top bar */}
-      <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b border-border/50 bg-card/95 backdrop-blur-sm z-10">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="shrink-0 flex items-center justify-between px-3 sm:px-4 py-2 border-b border-border/50 bg-card/95 backdrop-blur-sm z-10">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Button variant="ghost" size="sm" onClick={() => navigate(`/processus/${id}`)} className="gap-1.5 shrink-0">
-            <ArrowLeft className="h-4 w-4" /> Retour
+            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Retour</span>
           </Button>
-          <div className="h-5 w-px bg-border/50" />
+          <div className="h-5 w-px bg-border/50 hidden sm:block" />
           <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md shrink-0">{process.code}</span>
-          <span className="text-sm font-semibold text-foreground truncate">{process.nom}</span>
-          <Badge variant="secondary" className="text-[10px] shrink-0">Logigramme</Badge>
+          <span className="text-sm font-semibold text-foreground truncate min-w-0">{process.nom}</span>
+          <Badge variant="secondary" className="text-[10px] shrink-0 hidden sm:inline-flex">Logigramme</Badge>
         </div>
       </div>
 

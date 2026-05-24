@@ -135,17 +135,17 @@ export default function ProjectPlanningPage() {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 border-b border-border/40 bg-card px-4 py-2.5 flex items-center gap-3" style={{ boxShadow: "var(--shadow-sm)" }}>
-        <Button variant="ghost" size="sm" onClick={() => navigate(`/actions/${projectId}`)} className="text-muted-foreground gap-1.5">
-          <ArrowLeft className="h-4 w-4" /> Retour
+      <div className="shrink-0 border-b border-border/40 bg-card px-3 sm:px-4 py-2.5 flex items-center gap-2 sm:gap-3" style={{ boxShadow: "var(--shadow-sm)" }}>
+        <Button variant="ghost" size="sm" onClick={() => navigate(`/actions/${projectId}`)} className="text-muted-foreground gap-1.5 shrink-0">
+          <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Retour</span>
         </Button>
-        <div className="h-5 w-px bg-border/50" />
-        <CalendarRange className="h-4.5 w-4.5 text-primary" />
-        <h1 className="text-sm font-semibold text-foreground truncate">{project.title}</h1>
-        <Badge className={`${st.class} text-[10px]`}>{st.label}</Badge>
+        <div className="h-5 w-px bg-border/50 hidden sm:block" />
+        <CalendarRange className="h-4 w-4 text-primary shrink-0 hidden sm:block" />
+        <h1 className="text-sm font-semibold text-foreground truncate min-w-0">{project.title}</h1>
+        <Badge className={`${st.class} text-[10px] shrink-0`}>{st.label}</Badge>
 
-        {/* Status legend */}
-        <div className="ml-auto flex items-center gap-3 text-[10px] text-muted-foreground">
+        {/* Status legend (desktop only) */}
+        <div className="ml-auto hidden lg:flex items-center gap-3 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/30" /> À faire</span>
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-primary" /> En cours</span>
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Terminé</span>
@@ -154,16 +154,20 @@ export default function ProjectPlanningPage() {
         </div>
       </div>
 
-      {/* Gantt fullscreen */}
+      {/* Gantt fullscreen — horizontal scroll on small screens */}
       <div className="flex-1 overflow-hidden">
-        <ProjectGanttChart
-          items={ganttItems}
-          fullscreen
-          canComment={canComment}
-          isAdmin={isAdmin}
-          projectId={projectId!}
-          projectResponsableUserId={(project as any)?.responsable_user_id}
-        />
+        <div className="h-full overflow-x-auto md:overflow-x-hidden">
+          <div className="h-full min-w-[720px] md:min-w-0">
+            <ProjectGanttChart
+              items={ganttItems}
+              fullscreen
+              canComment={canComment}
+              isAdmin={isAdmin}
+              projectId={projectId!}
+              projectResponsableUserId={(project as any)?.responsable_user_id}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
