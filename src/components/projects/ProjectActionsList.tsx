@@ -216,7 +216,8 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   const [filterStatut, setFilterStatut] = useState("all");
   const [hideTerminees, setHideTerminees] = useState(false);
   const [filterEcheance, setFilterEcheance] = useState("all");
-  const [sortBy, setSortBy] = useState("ordre");
+  const [sortBy, setSortBy] = useState("echeance");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [dependencies, setDependencies] = useState<Dependency[]>([]);
 
   // Resolve real user names for actions/tasks that have a responsable_user_id set.
