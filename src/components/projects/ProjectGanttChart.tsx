@@ -191,7 +191,7 @@ export function ProjectGanttChart({ items, fullscreen, canComment, isAdmin, proj
                 #{String(actionNumberById[item.id]).padStart(3, "0")}
               </span>
             )}
-            <span className={`text-xs truncate ${item.level === "project" ? "font-semibold text-foreground" : "font-medium text-foreground"} ${item.statut === "annulee" ? "line-through opacity-50" : ""}`}>
+            <span className={`text-xs ${fullscreen ? "whitespace-normal break-words leading-snug" : "truncate"} ${item.level === "project" ? "font-semibold text-foreground" : "font-medium text-foreground"} ${item.statut === "annulee" ? "line-through opacity-50" : ""}`}>
               {item.statut === "bloquee" && <Lock className="h-3 w-3 inline mr-1 text-slate-500" />}
               {item.statut === "annulee" && <Ban className="h-3 w-3 inline mr-1 text-muted-foreground" />}
               {item.title}
