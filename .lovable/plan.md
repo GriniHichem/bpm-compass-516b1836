@@ -1,31 +1,47 @@
 ## Objectif
-Dans le module Plan d'action, mode planning plein écran (Gantt), afficher l'intégralité du libellé de l'action (et tâche/projet) au lieu de tronquer.
+
+Dans le module Plan d'action, trier les actions et les tâches par **date d'échéance** (et non plus par ordre manuel/date de création), avec un **bouton triangle** permettant de basculer entre tri **croissant** (plus ancienne → plus récente) et **décroissant** (plus récente → plus ancienne).
 
 ## Constat
-Dans `src/components/projects/ProjectGanttChart.tsx`, la colonne label du Gantt :
-- a une largeur fixe `w-72` (ligne 176)
-- applique `truncate` sur le `<span>` du titre (ligne 194)
 
-Résultat : les phrases longues sont coupées par `…` dans la vue plein écran.
+`src/components/projects/ProjectActionsList.tsx` :
+- `sortBy` par défaut = `"ordre"` (ligne 219) → ordre manuel
+- Le tri par échéance existe mais uniquement en croissant (lignes 675‑679)
+- Les tâches d'une action multi‑tâches sont triées en dur par échéance croissante (lignes 1383‑1388)
+- Aucun bouton de direction de tri
 
 ## Changements (frontend uniquement, fichier unique)
 
-`src/components/projects/ProjectGanttChart.tsx`
+`src/components/projects/ProjectActionsList.tsx`
 
-1. Ligne 176 — élargir la colonne label en mode plein écran :
-   ```tsx
-   className={`${fullscreen ? "w-[28rem]" : "w-72"} shrink-0 flex items-start gap-1.5 px-3 py-2 border-r border-border/20`}
-   ```
-   (et `items-start` pour bien aligner quand le texte passe sur 2-3 lignes)
+1. **État du tri** (ligne 219)
+   - Changer `useState("ordre")` → `useState("echeance")` (tri par échéance par défaut)
+   - Ajouter `const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")`
 
-2. Ligne 194 — autoriser le retour à la ligne en mode plein écran :
-   ```tsx
-   <span className={`text-xs ${fullscreen ? "whitespace-normal break-words leading-snug" : "truncate"} ${item.level === "project" ? "font-semibold" : "font-medium"} text-foreground ${item.statut === "annulee" ? "line-through opacity-50" : ""}`}>
-   ```
+2. **Logique de tri des actions** (lignes 672‑683)
+   - Appliquer `sortDir` au comparateur échéance : multiplier le résultat par `sortDir === "asc" ? 1 : -1`
+   - Idem pour `ordre` et `created_at` (cohérence : la direction s'applique à toutes les options)
+   - Conserver la règle « échéances nulles à la fin » dans les deux directions
 
-3. Ajuster la hauteur de ligne : la rangée a actuellement une hauteur fixe `h-9` (à vérifier autour du conteneur `onClick={handleRowClick}`). En mode `fullscreen`, passer à `min-h-9` pour laisser grandir la ligne sans casser l'alignement des barres Gantt à droite (la barre reste centrée verticalement via `items-center` sur la zone timeline).
+3. **Tri des tâches** (lignes 1383‑1388)
+   - Utiliser le même `sortDir` pour les tâches d'une action multi‑tâches
+
+4. **UI bouton triangle** (à côté du Select de tri, lignes 902‑912 desktop et 984‑990 mobile/drawer)
+   - Ajouter un petit `<Button variant="ghost" size="icon">` à droite du Select
+   - Icône : `ChevronUp` (asc) / `ChevronDown` (desc) depuis `lucide-react` (déjà importé pour d'autres usages — sinon ajouter à l'import)
+   - `onClick` : `setSortDir(d => d === "asc" ? "desc" : "asc")`
+   - `title` : `"Tri croissant (plus ancienne d'abord)"` / `"Tri décroissant (plus récente d'abord)"`
+   - Taille compacte cohérente avec les contrôles voisins (`h-7 w-7`)
+
+5. **Compteur de filtres actifs** (ligne 945)
+   - Ne pas compter `sortDir` comme un filtre actif (c'est un paramètre d'affichage, pas un filtre)
+   - Adapter le test `sortBy !== "ordre"` → `sortBy !== "echeance"` pour refléter le nouveau défaut
+
+6. **Reset filtres** (ligne 951)
+   - `setSortBy("ordre")` → `setSortBy("echeance")`
+   - `setSortDir("asc")`
 
 ## Hors scope
-- Pas de modification de la timeline/barres Gantt.
-- Pas de modification du mode inline (non plein écran).
-- Aucun changement DB/RLS.
+- Pas de modification de la vue Gantt / planning plein écran
+- Pas de changement DB, RLS, requêtes Supabase, ni de l'ordre `.order("ordre")` côté fetch (le tri reste purement côté client comme aujourd'hui)
+- Pas de persistance du choix de tri (état local React, comme l'existant)
