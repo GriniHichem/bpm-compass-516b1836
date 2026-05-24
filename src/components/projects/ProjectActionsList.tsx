@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { Plus, ChevronDown, ChevronRight, Trash2, CheckCircle2, Circle, Clock, MessageSquare, AlertTriangle, ShieldAlert, CalendarClock, History, UserPlus, X, ListTodo, Lock, RotateCcw, Pin, PinOff, EyeOff, Eye, Filter, ArrowUpDown, SlidersHorizontal, Ban, FileText, User, Pencil } from "lucide-react";
+import { Plus, ChevronDown, ChevronUp, ChevronRight, Trash2, CheckCircle2, Circle, Clock, MessageSquare, AlertTriangle, ShieldAlert, CalendarClock, History, UserPlus, X, ListTodo, Lock, RotateCcw, Pin, PinOff, EyeOff, Eye, Filter, ArrowUpDown, SlidersHorizontal, Ban, FileText, User, Pencil } from "lucide-react";
 import { FilterDrawer } from "@/components/ui/filter-drawer";
 import { ProjectActionComments } from "@/components/projects/ProjectActionComments";
 import { ProjectHistoryDialog } from "@/components/projects/ProjectHistoryDialog";
@@ -216,7 +216,8 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
   const [filterStatut, setFilterStatut] = useState("all");
   const [hideTerminees, setHideTerminees] = useState(false);
   const [filterEcheance, setFilterEcheance] = useState("all");
-  const [sortBy, setSortBy] = useState("ordre");
+  const [sortBy, setSortBy] = useState("echeance");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [dependencies, setDependencies] = useState<Dependency[]>([]);
 
   // Resolve real user names for actions/tasks that have a responsable_user_id set.
@@ -672,16 +673,19 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
       .sort((a, b) => {
         if (a.pinned && !b.pinned) return -1;
         if (!a.pinned && b.pinned) return 1;
+        const dir = sortDir === "asc" ? 1 : -1;
         if (sortBy === "echeance") {
           if (!a.echeance && !b.echeance) return 0;
           if (!a.echeance) return 1;
           if (!b.echeance) return -1;
-          return a.echeance.localeCompare(b.echeance);
+          return a.echeance.localeCompare(b.echeance) * dir;
         }
-        if (sortBy === "created_at") return 0;
-        return a.ordre - b.ordre;
+        if (sortBy === "created_at") {
+          return (a.created_at ?? "").localeCompare(b.created_at ?? "") * dir;
+        }
+        return (a.ordre - b.ordre) * dir;
       });
-  }, [actions, hideTerminees, filterStatut, filterEcheance, sortBy, projectDeadline]);
+  }, [actions, hideTerminees, filterStatut, filterEcheance, sortBy, sortDir, projectDeadline]);
   const getFilteredActions = () => filteredActionsMemo;
 
   // Stable sequential number per action, based on creation order (ascending).
@@ -912,6 +916,17 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
           </Select>
 
           <Button
+            variant="outline"
+            size="icon"
+            className="h-7 w-7 border-border/40"
+            onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+            title={sortDir === "asc" ? "Tri croissant (plus ancienne d'abord)" : "Tri décroissant (plus récente d'abord)"}
+          >
+            {sortDir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </Button>
+
+
+          <Button
             variant={hideTerminees ? "default" : "outline"}
             size="sm"
             className="h-7 text-[11px] gap-1 px-2.5"
@@ -942,13 +957,14 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
             activeCount={
               (filterStatut !== "all" ? 1 : 0) +
               (filterEcheance !== "all" ? 1 : 0) +
-              (sortBy !== "ordre" ? 1 : 0) +
+              (sortBy !== "echeance" ? 1 : 0) +
               (hideTerminees ? 1 : 0)
             }
             onReset={() => {
               setFilterStatut("all");
               setFilterEcheance("all");
-              setSortBy("ordre");
+              setSortBy("echeance");
+              setSortDir("asc");
               setHideTerminees(false);
             }}
           >
@@ -981,14 +997,25 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Trier par</label>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-full h-11"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ordre">Ordre manuel</SelectItem>
-                  <SelectItem value="echeance">Échéance</SelectItem>
-                  <SelectItem value="created_at">Date création</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="flex-1 h-11"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ordre">Ordre manuel</SelectItem>
+                    <SelectItem value="echeance">Échéance</SelectItem>
+                    <SelectItem value="created_at">Date création</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-11 w-11 shrink-0"
+                  onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                  title={sortDir === "asc" ? "Tri croissant" : "Tri décroissant"}
+                >
+                  {sortDir === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
             <Button
               variant={hideTerminees ? "default" : "outline"}
@@ -1384,7 +1411,7 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
                           if (!a.echeance && !b.echeance) return 0;
                           if (!a.echeance) return 1;
                           if (!b.echeance) return -1;
-                          return a.echeance.localeCompare(b.echeance);
+                          return a.echeance.localeCompare(b.echeance) * (sortDir === "asc" ? 1 : -1);
                         }).map((task) => {
                           const ts = TASK_STATUS[task.statut] ?? TASK_STATUS.a_faire;
                           const TaskIcon = ts.icon;
