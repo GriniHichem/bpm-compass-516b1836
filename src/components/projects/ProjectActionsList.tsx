@@ -673,16 +673,19 @@ export function ProjectActionsList({ projectId, projectDeadline, canEdit, canDel
       .sort((a, b) => {
         if (a.pinned && !b.pinned) return -1;
         if (!a.pinned && b.pinned) return 1;
+        const dir = sortDir === "asc" ? 1 : -1;
         if (sortBy === "echeance") {
           if (!a.echeance && !b.echeance) return 0;
           if (!a.echeance) return 1;
           if (!b.echeance) return -1;
-          return a.echeance.localeCompare(b.echeance);
+          return a.echeance.localeCompare(b.echeance) * dir;
         }
-        if (sortBy === "created_at") return 0;
-        return a.ordre - b.ordre;
+        if (sortBy === "created_at") {
+          return (a.created_at ?? "").localeCompare(b.created_at ?? "") * dir;
+        }
+        return (a.ordre - b.ordre) * dir;
       });
-  }, [actions, hideTerminees, filterStatut, filterEcheance, sortBy, projectDeadline]);
+  }, [actions, hideTerminees, filterStatut, filterEcheance, sortBy, sortDir, projectDeadline]);
   const getFilteredActions = () => filteredActionsMemo;
 
   // Stable sequential number per action, based on creation order (ascending).
