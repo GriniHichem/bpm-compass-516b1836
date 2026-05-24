@@ -322,3 +322,19 @@
     overscroll-behavior: contain;
   }
 }
+
+/* ===== Global mobile hygiene ===== */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+body {
+  overflow-x: hidden;
+}
+/* Avoid iOS auto-zoom on focused inputs (font < 16px triggers zoom) */
+@media (max-width: 640px) {
+  input, select, textarea {
+    font-size: 16px;
+  }
+}
+

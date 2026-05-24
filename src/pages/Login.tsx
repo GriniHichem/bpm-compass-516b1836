@@ -31,7 +31,7 @@ export default function Login() {
   const logoSrc = settings.logo_url || defaultLogo;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 py-6 pb-safe">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="text-center space-y-3">
           <img src={logoSrc} alt={settings.company_name} className="mx-auto h-14 object-contain" width={186} height={56} fetchPriority="high" />
@@ -44,13 +44,34 @@ export default function Login() {
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="votre@email.com" required />
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="votre@email.com"
+                required
+                autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                className="h-11"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Mot de passe</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                autoComplete="current-password"
+                className="h-11"
+              />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full h-11 tap-target" disabled={loading}>
               {loading ? "Chargement..." : "Se connecter"}
             </Button>
             <div className="text-center">
