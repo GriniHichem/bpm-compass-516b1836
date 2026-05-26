@@ -1018,6 +1018,45 @@ export type Database = {
           },
         ]
       }
+      document_code_rules: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          include_process: boolean
+          next_seq: number
+          padding: number
+          prefix: string
+          separator: string
+          type_document: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          include_process?: boolean
+          next_seq?: number
+          padding?: number
+          prefix: string
+          separator?: string
+          type_document: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          include_process?: boolean
+          next_seq?: number
+          padding?: number
+          prefix?: string
+          separator?: string
+          type_document?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       document_processes: {
         Row: {
           created_at: string
@@ -1132,59 +1171,136 @@ export type Database = {
         }
         Relationships: []
       }
+      document_workflow_history: {
+        Row: {
+          action: string
+          commentaire: string | null
+          created_at: string
+          document_id: string
+          from_statut: string | null
+          id: string
+          to_statut: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          commentaire?: string | null
+          created_at?: string
+          document_id: string
+          from_statut?: string | null
+          id?: string
+          to_statut?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          commentaire?: string | null
+          created_at?: string
+          document_id?: string
+          from_statut?: string | null
+          id?: string
+          to_statut?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_workflow_history_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
+          approbateur_user_id: string | null
           archive: boolean
           chemin_fichier: string | null
+          code: string | null
           consulte_count: number | null
           created_at: string
+          date_approbation: string | null
+          date_prochaine_revue: string | null
+          date_soumission: string | null
+          date_verification: string | null
           description: string | null
+          frequence_revue_mois: number | null
           id: string
+          motif_refus: string | null
           nom_fichier: string | null
+          obsolete_motif: string | null
           process_id: string | null
+          redacteur_user_id: string | null
           retired_at: string | null
           retired_by: string | null
+          statut_workflow: string
           taille_fichier: number | null
           titre: string
           type_document: Database["public"]["Enums"]["document_type"]
           updated_at: string
           uploaded_by: string | null
+          verificateur_user_id: string | null
           version: number
         }
         Insert: {
+          approbateur_user_id?: string | null
           archive?: boolean
           chemin_fichier?: string | null
+          code?: string | null
           consulte_count?: number | null
           created_at?: string
+          date_approbation?: string | null
+          date_prochaine_revue?: string | null
+          date_soumission?: string | null
+          date_verification?: string | null
           description?: string | null
+          frequence_revue_mois?: number | null
           id?: string
+          motif_refus?: string | null
           nom_fichier?: string | null
+          obsolete_motif?: string | null
           process_id?: string | null
+          redacteur_user_id?: string | null
           retired_at?: string | null
           retired_by?: string | null
+          statut_workflow?: string
           taille_fichier?: number | null
           titre: string
           type_document: Database["public"]["Enums"]["document_type"]
           updated_at?: string
           uploaded_by?: string | null
+          verificateur_user_id?: string | null
           version?: number
         }
         Update: {
+          approbateur_user_id?: string | null
           archive?: boolean
           chemin_fichier?: string | null
+          code?: string | null
           consulte_count?: number | null
           created_at?: string
+          date_approbation?: string | null
+          date_prochaine_revue?: string | null
+          date_soumission?: string | null
+          date_verification?: string | null
           description?: string | null
+          frequence_revue_mois?: number | null
           id?: string
+          motif_refus?: string | null
           nom_fichier?: string | null
+          obsolete_motif?: string | null
           process_id?: string | null
+          redacteur_user_id?: string | null
           retired_at?: string | null
           retired_by?: string | null
+          statut_workflow?: string
           taille_fichier?: number | null
           titre?: string
           type_document?: Database["public"]["Enums"]["document_type"]
           updated_at?: string
           uploaded_by?: string | null
+          verificateur_user_id?: string | null
           version?: number
         }
         Relationships: [
@@ -3955,6 +4071,10 @@ export type Database = {
         Returns: boolean
       }
       cleanup_old_audit_logs: { Args: { _days?: number }; Returns: number }
+      generate_document_code: {
+        Args: { _type_document: string }
+        Returns: string
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
