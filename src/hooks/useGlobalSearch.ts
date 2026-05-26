@@ -10,7 +10,8 @@ export type SearchEntityType =
   | "documents"
   | "indicateurs"
   | "risques"
-  | "acteurs";
+  | "acteurs"
+  | "projets";
 
 export interface SearchResult {
   id: string;
