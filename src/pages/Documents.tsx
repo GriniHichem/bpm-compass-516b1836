@@ -605,7 +605,7 @@ export default function Documents() {
           ) : (
             <div className="grid gap-3">
               {filteredDocs.map(d => {
-                const reviewDays = d.date_prochaine_revue ? differenceInCalendarDays(d.date_prochaine_revue) : null;
+                const reviewDays = d.date_prochaine_revue ? differenceInDays(parseISO(d.date_prochaine_revue), new Date()) : null;
                 const reviewOverdue = reviewDays !== null && reviewDays < 0;
                 const reviewSoon = reviewDays !== null && reviewDays >= 0 && reviewDays <= 30;
                 return (
