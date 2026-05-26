@@ -341,6 +341,19 @@ export default function RevueDirectionISO() {
           </div>
         </div>
       )}
+
+      <Dialog open={!!validationId} onOpenChange={(o) => !o && setValidationId(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Validation de la revue de direction</DialogTitle></DialogHeader>
+          {validationId && (
+            <ValidationPanel
+              entityType="revue"
+              entityId={validationId}
+              onApproved={() => qc.invalidateQueries({ queryKey: ["management_reviews_iso"] })}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
