@@ -1,7 +1,7 @@
 # 📘 Manuel Utilisateur — Plateforme SMQ ISO 9001
 
 **Éditeur** : Groupe AMOUR
-**Version** : 2026.04
+**Version** : 2026.05
 **Norme de référence** : ISO 9001:2015
 **Devise** : Dinar Algérien (DA)
 **Langue** : Français
@@ -32,6 +32,7 @@
 20. [Journal d'activité](#20-journal-dactivité)
 21. [Licence](#21-licence)
 22. [Performance & Bonnes pratiques](#22-performance--bonnes-pratiques)
+23. [Utilisation sur mobile & responsive](#23-utilisation-sur-mobile--responsive)
 
 ---
 
@@ -57,6 +58,7 @@ L'application est **100 % auto-hébergeable** (architecture Groupe AMOUR), sans 
 - L'accès se fait via **email + mot de passe** uniquement.
 - ❌ Pas d'inscription libre. Les comptes sont créés par un Administrateur.
 - ❌ Pas de récupération automatique du mot de passe sur l'écran de connexion.
+- Sur mobile, le clavier s'adapte automatiquement (touche `@` pour l'email, complétion du mot de passe proposée).
 
 ### 2.2 Modification du mot de passe
 - Une fois connecté, cliquez sur l'**icône clé** dans l'en-tête.
@@ -134,6 +136,7 @@ L'éditeur utilise **TipTap** plein écran, format **A4**, police **Serif** pour
 - Fin du flux : nœud rouge `__end__`.
 - Passerelles **AND / OR / XOR** : minimum **2 branches** obligatoires.
 - Export PNG / PDF haute résolution, layout orthogonal large pour éviter les chevauchements.
+- Sur mobile : le diagramme reste utilisable par **défilement horizontal** ; les panneaux latéraux deviennent des **feuilles plein écran** (Sheet).
 
 ---
 
@@ -224,6 +227,7 @@ Cycle ISO 9001 strict :
 
 ### 12.4 Espace de planification
 - **Gantt plein écran** + panneau latéral redimensionnable.
+- Sur mobile : le Gantt s'affiche avec une **barre de défilement horizontale** ; les en-têtes de page se compactent automatiquement.
 
 ### 12.5 Commentaires privés
 - Badge **cadenas** + bordure ambre.
@@ -303,8 +307,9 @@ Une table commune sert les **revues de processus** et les **revues de direction*
 ## 19. Recherche globale & Aide contextuelle
 
 ### 19.1 Recherche
-- Raccourci **Cmd / Ctrl + K**.
+- Raccourci **Cmd / Ctrl + K** (ou icône loupe dans la barre supérieure sur mobile).
 - Recherche **multi-entités**, asynchrone, avec debounce et annulation.
+- La fenêtre de résultats s'adapte à la largeur de l'écran.
 
 ### 19.2 Aide contextuelle
 - Composant `HelpTooltip` mappé sur **plus de 60 définitions** issues des **articles 4 à 10** de la norme ISO 9001:2015.
@@ -341,6 +346,7 @@ Une table commune sert les **revues de processus** et les **revues de direction*
 - Purge périodique des `audit_logs` > 180 jours via `cleanup_old_audit_logs`.
 - Auth en flux **PKCE**, événements Realtime **throttle**.
 - Préchargement DNS / preconnect du backend.
+- Réduction des animations automatique si l'utilisateur active `préfère réduire les mouvements` dans son appareil.
 
 ### 22.2 Suppression sécurisée
 - Confirmation par saisie de **« je confirme »**.
@@ -354,6 +360,35 @@ Une table commune sert les **revues de processus** et les **revues de direction*
 - `GOTRUE_SITE_URL` **sans slash final**.
 - Réglage `app_settings.supabase_url` correct.
 - Voir `diagnostics/SELF_HOSTING_RULES.md` (section 15.10) pour la liste complète.
+
+---
+
+## 23. Utilisation sur mobile & responsive
+
+L'application est entièrement utilisable sur **smartphone** (≤640 px) et **tablette** (641–1023 px). Les fonctionnalités métier restent identiques ; seule la présentation s'adapte.
+
+### 23.1 Navigation
+- La **barre latérale** devient un **menu burger** plein écran (Sheet) sur mobile.
+- Les icônes de notification et de recherche conservent une **zone tactile** de 44 × 44 px minimum.
+- Le fil d'Ariane est masqué sur petit écran pour gagner de la place.
+
+### 23.2 Listes et tableaux
+- Les tableaux denses se transforment en **cartes empilées** avec titre, 2–3 métadonnées, badge de statut et menu d'actions.
+- Les onglets longs (détail projet, détail processus, revues de direction, compétences) deviennent **défilables horizontalement**.
+
+### 23.3 Formulaires et saisie
+- Les champs de saisie ont une hauteur minimum de **44 px** (`h-11`) pour éviter les erreurs de toucher.
+- La taille de police des inputs est fixée à **16 px** : cela évite le **zoom automatique iOS** lors du focus.
+- Les dialogues lourds passent en **plein écran** sur mobile avec en-tête fixe et boutons d'action en bas de l'écran.
+
+### 23.4 Vues complexes (Gantt, BPMN, flowchart)
+- **Planning Gantt** : défilement horizontal natif sur la zone du diagramme.
+- **Logigramme & BPMN** : zoom et panoramique tactiles ; panneau de propriétés en feuille latérale plein écran.
+
+### 23.5 Accessibilité & confort
+- Prise en charge du mode **préfère réduire les mouvements** (`prefers-reduced-motion`) : les animations sont désactivées automatiquement.
+- Les toasts et alertes se positionnent en **haut de l'écran** sur mobile pour ne pas être masqués par le clavier virtuel.
+- Le bouton d'action principal (FAB) flotte en bas à droite sur les pages liste pour un accès rapide au pouce.
 
 ---
 
