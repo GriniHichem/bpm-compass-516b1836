@@ -604,13 +604,27 @@ export default function Documents() {
             <Card><CardContent className="py-12 text-center text-muted-foreground">Aucun document trouvé</CardContent></Card>
           ) : (
             <div className="grid gap-3">
-              {filteredDocs.map(d => (
-                <Card key={d.id}>
+              {filteredDocs.map(d => {
+                const reviewDays = d.date_prochaine_revue ? differenceInCalendarDays(d.date_prochaine_revue) : null;
+                const reviewOverdue = reviewDays !== null && reviewDays < 0;
+                const reviewSoon = reviewDays !== null && reviewDays >= 0 && reviewDays <= 30;
+                return (
+                <Card key={d.id} className={d.statut_workflow === "obsolete" ? "opacity-60" : ""}>
                   <CardContent className="flex items-center justify-between py-4">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       {getDocIcon(d)}
-                      <div>
-                        <p className="font-medium">{d.titre}</p>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {d.code && <Badge variant="outline" className="font-mono text-[10px] px-1.5">{d.code}</Badge>}
+                          <p className="font-medium truncate">{d.titre}</p>
+                          <Badge className={WORKFLOW_COLORS[d.statut_workflow] + " border text-[10px]"}>{WORKFLOW_LABELS[d.statut_workflow]}</Badge>
+                          {reviewOverdue && (
+                            <Badge variant="destructive" className="text-[10px] gap-1"><AlertTriangle className="h-3 w-3" />Revue en retard</Badge>
+                          )}
+                          {reviewSoon && !reviewOverdue && (
+                            <Badge className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">Revue dans {reviewDays}j</Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           {typeLabels[d.type_document] ?? d.type_document} • v{d.version}
                           {d.consulte_count > 0 && <> • {d.consulte_count} consultation{d.consulte_count > 1 ? "s" : ""}</>}
@@ -632,7 +646,10 @@ export default function Documents() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {d.nom_fichier && <Badge variant="secondary" className="max-w-[160px] truncate">{d.nom_fichier}</Badge>}
+                      {d.nom_fichier && <Badge variant="secondary" className="max-w-[140px] truncate hidden md:inline-flex">{d.nom_fichier}</Badge>}
+                      <Button variant="ghost" size="icon" onClick={() => setWorkflowDocId(d.id)} title="Cycle d'approbation">
+                        <ShieldCheck className="h-4 w-4" />
+                      </Button>
                       {d.chemin_fichier && (isPdfFile(d.nom_fichier) || isImageFile(d.nom_fichier)) && (
                         <Button variant="ghost" size="icon" onClick={() => openFileViewer(d)} title="Consulter">
                           <Eye className="h-4 w-4" />
@@ -660,7 +677,8 @@ export default function Documents() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>
