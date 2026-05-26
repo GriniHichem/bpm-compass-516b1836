@@ -86,6 +86,7 @@ export default function RevueDirectionISO() {
   const [viewDialog, setViewDialog] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [viewing, setViewing] = useState<any>(null);
+  const [validationId, setValidationId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [activeField, setActiveField] = useState<string>("participants");
 
