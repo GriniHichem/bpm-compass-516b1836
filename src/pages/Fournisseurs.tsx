@@ -34,6 +34,7 @@ export default function Fournisseurs() {
   const [dialog, setDialog] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState(emptyForm);
+  const [validationId, setValidationId] = useState<string | null>(null);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ["suppliers"],
