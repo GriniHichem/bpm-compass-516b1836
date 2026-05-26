@@ -45,6 +45,7 @@ export default function PolitiqueQualite() {
   const [objDialog, setObjDialog] = useState(false);
   const [editingObj, setEditingObj] = useState<any>(null);
   const [objForm, setObjForm] = useState({ reference: "", description: "", indicateur: "", cible: "", echeance: "", statut: "en_cours", commentaire: "" });
+  const [validationObjId, setValidationObjId] = useState<string | null>(null);
 
   const { data: policies = [] } = useQuery({
     queryKey: ["quality_policy"],
