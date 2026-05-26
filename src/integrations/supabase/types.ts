@@ -1753,8 +1753,10 @@ export type Database = {
       management_reviews: {
         Row: {
           actions_decidees: string
+          approbateur_user_id: string | null
           compte_rendu: string
           created_at: string
+          date_approbation: string | null
           date_revue: string
           decisions: string
           elements_entree: string
@@ -1769,8 +1771,10 @@ export type Database = {
         }
         Insert: {
           actions_decidees?: string
+          approbateur_user_id?: string | null
           compte_rendu?: string
           created_at?: string
+          date_approbation?: string | null
           date_revue?: string
           decisions?: string
           elements_entree?: string
@@ -1785,8 +1789,10 @@ export type Database = {
         }
         Update: {
           actions_decidees?: string
+          approbateur_user_id?: string | null
           compte_rendu?: string
           created_at?: string
+          date_approbation?: string | null
           date_revue?: string
           decisions?: string
           elements_entree?: string
