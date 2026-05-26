@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { FolderOpen, Plus, Trash2, Tag, Settings, ChevronDown } from "lucide-react";
+import { FolderOpen, Plus, Trash2, Tag, Settings, ChevronDown, Hash } from "lucide-react";
 import { useActeurs } from "@/hooks/useActeurs";
 
 interface DocType { id: string; label: string; code: string; actif: boolean; }
@@ -20,6 +20,10 @@ interface DocActeurPerm {
   id: string; acteur_id: string;
   can_read: boolean; can_download: boolean; can_delete: boolean;
   allowed_type_ids: string[]; allowed_tag_ids: string[];
+}
+interface CodeRule {
+  id: string; type_document: string; prefix: string; padding: number;
+  next_seq: number; separator: string; active: boolean;
 }
 
 export default function AdminDocumentsConfig() {
@@ -30,6 +34,7 @@ export default function AdminDocumentsConfig() {
   const [types, setTypes] = useState<DocType[]>([]);
   const [tags, setTags] = useState<DocTag[]>([]);
   const [perms, setPerms] = useState<DocActeurPerm[]>([]);
+  const [rules, setRules] = useState<CodeRule[]>([]);
   const [newTypeLabel, setNewTypeLabel] = useState("");
   const [newTypeCode, setNewTypeCode] = useState("");
   const [newTagLabel, setNewTagLabel] = useState("");
@@ -37,14 +42,16 @@ export default function AdminDocumentsConfig() {
   const [loading, setLoading] = useState(true);
 
   const fetchAll = async () => {
-    const [tRes, tagRes, pRes] = await Promise.all([
+    const [tRes, tagRes, pRes, rulesRes] = await Promise.all([
       supabase.from("document_types").select("*").order("label"),
       supabase.from("document_tags").select("*").order("label"),
       supabase.from("document_actor_permissions").select("*"),
+      supabase.from("document_code_rules").select("*").order("type_document"),
     ]);
     setTypes((tRes.data ?? []) as DocType[]);
     setTags((tagRes.data ?? []) as DocTag[]);
     setPerms((pRes.data ?? []) as DocActeurPerm[]);
+    setRules((rulesRes.data ?? []) as CodeRule[]);
     setLoading(false);
   };
 
@@ -102,6 +109,13 @@ export default function AdminDocumentsConfig() {
     }
     fetchAll();
   };
+
+  const updateRule = async (id: string, field: keyof CodeRule, value: any) => {
+    const { error } = await supabase.from("document_code_rules").update({ [field]: value } as any).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    fetchAll();
+  };
+
 
   if (loading) return <div className="py-12 text-center text-muted-foreground">Chargement...</div>;
 
@@ -193,6 +207,50 @@ export default function AdminDocumentsConfig() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Codification automatique */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2"><Hash className="h-4 w-4" /> Codification automatique</CardTitle>
+          <CardDescription>Préfixe, séparateur et compteur par type de document. Le code est généré à la création.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {rules.length === 0 ? (
+            <p className="text-center text-muted-foreground py-6">Aucune règle</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead className="w-[110px]">Préfixe</TableHead>
+                  <TableHead className="w-[80px]">Sép.</TableHead>
+                  <TableHead className="w-[90px]">Padding</TableHead>
+                  <TableHead className="w-[110px]">Prochain n°</TableHead>
+                  <TableHead className="w-[80px]">Actif</TableHead>
+                  <TableHead>Exemple</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rules.map(r => {
+                  const example = `${r.prefix}${r.separator}${String(r.next_seq).padStart(r.padding, "0")}`;
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-medium text-sm">{r.type_document}</TableCell>
+                      <TableCell><Input defaultValue={r.prefix} disabled={!canEdit} onBlur={e => e.target.value !== r.prefix && updateRule(r.id, "prefix", e.target.value)} className="h-8 text-xs uppercase" /></TableCell>
+                      <TableCell><Input defaultValue={r.separator} disabled={!canEdit} onBlur={e => e.target.value !== r.separator && updateRule(r.id, "separator", e.target.value)} className="h-8 text-xs" maxLength={3} /></TableCell>
+                      <TableCell><Input type="number" min={1} max={8} defaultValue={r.padding} disabled={!canEdit} onBlur={e => parseInt(e.target.value) !== r.padding && updateRule(r.id, "padding", parseInt(e.target.value))} className="h-8 text-xs" /></TableCell>
+                      <TableCell><Input type="number" min={1} defaultValue={r.next_seq} disabled={!canEdit} onBlur={e => parseInt(e.target.value) !== r.next_seq && updateRule(r.id, "next_seq", parseInt(e.target.value))} className="h-8 text-xs" /></TableCell>
+                      <TableCell><Switch checked={r.active} onCheckedChange={v => updateRule(r.id, "active", v)} disabled={!canEdit} /></TableCell>
+                      <TableCell><Badge variant="outline" className="font-mono">{example}</Badge></TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
 
       {/* Permissions */}
       <Card>

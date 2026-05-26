@@ -10,13 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, FileText, Trash2, X, Eye, Download, ImageIcon, FolderOpen, Search, BarChart3, Clock, FileImage, File, Tag } from "lucide-react";
+import { Plus, FileText, Trash2, X, Eye, Download, ImageIcon, FolderOpen, Search, BarChart3, Clock, FileImage, File, Tag, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { HelpTooltip } from "@/components/HelpTooltip";
 import { PdfViewerDialog } from "@/components/PdfViewerDialog";
 import { ImageViewerDialog } from "@/components/ImageViewerDialog";
+import { DocumentWorkflowDialog, WORKFLOW_LABELS, WORKFLOW_COLORS, type WorkflowStatut } from "@/components/DocumentWorkflowDialog";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from "recharts";
-import { format, subMonths, startOfMonth, parseISO } from "date-fns";
+import { format, subMonths, startOfMonth, parseISO, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 
 type DocType = { id: string; label: string; code: string; actif: boolean; };
@@ -25,6 +26,7 @@ type DocTag = { id: string; label: string; color: string; };
 type Doc = {
   id: string;
   titre: string;
+  code: string | null;
   type_document: string;
   version: number;
   archive: boolean;
@@ -35,6 +37,9 @@ type Doc = {
   consulte_count: number;
   retired_at: string | null;
   tag_ids: string[];
+  statut_workflow: WorkflowStatut;
+  date_prochaine_revue: string | null;
+  date_approbation: string | null;
 };
 
 type AuditLog = {
@@ -87,6 +92,11 @@ export default function Documents() {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterTagId, setFilterTagId] = useState("all");
+  const [filterStatut, setFilterStatut] = useState<string>("all");
+  const [showObsolete, setShowObsolete] = useState(false);
+
+  // Workflow dialog
+  const [workflowDocId, setWorkflowDocId] = useState<string | null>(null);
 
   // Viewers
   const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null);
@@ -146,11 +156,14 @@ export default function Documents() {
     });
 
     let enriched: Doc[] = (docsData ?? []).map((d: any) => ({
-      id: d.id, titre: d.titre, type_document: d.type_document, version: d.version,
+      id: d.id, titre: d.titre, code: d.code ?? null, type_document: d.type_document, version: d.version,
       archive: d.archive, nom_fichier: d.nom_fichier, chemin_fichier: d.chemin_fichier,
       created_at: d.created_at, process_ids: dpMap.get(d.id) || [],
       consulte_count: d.consulte_count ?? 0, retired_at: d.retired_at,
       tag_ids: tagMap.get(d.id) || [],
+      statut_workflow: (d.statut_workflow ?? "brouillon") as WorkflowStatut,
+      date_prochaine_revue: d.date_prochaine_revue ?? null,
+      date_approbation: d.date_approbation ?? null,
     }));
 
     if (isOnlyResponsable) {
@@ -200,7 +213,9 @@ export default function Documents() {
       type_document: detectedType as any,
       process_id: newDoc.selectedProcessIds[0] || null,
       chemin_fichier: chemin, nom_fichier, taille_fichier,
-    }).select("id").single();
+      redacteur_user_id: user?.id ?? null,
+      statut_workflow: "brouillon",
+    } as any).select("id").single();
 
     if (error || !insertedDoc) {
       toast.error("Erreur création document : " + (error?.message.includes("row-level security") ? "Vous n'avez pas les droits pour créer des documents." : error?.message || "Erreur inconnue"));
@@ -254,10 +269,15 @@ export default function Documents() {
   // Filtered docs
   const filteredDocs = useMemo(() => {
     return docs.filter(d => {
+      if (!showObsolete && d.statut_workflow === "obsolete") return false;
+      if (filterStatut !== "all" && d.statut_workflow !== filterStatut) return false;
       if (filterProcessId !== "all" && !d.process_ids.includes(filterProcessId)) return false;
       if (filterType !== "all" && d.type_document !== filterType) return false;
       if (filterTagId !== "all" && !d.tag_ids.includes(filterTagId)) return false;
-      if (filterSearch && !d.titre.toLowerCase().includes(filterSearch.toLowerCase())) return false;
+      if (filterSearch) {
+        const s = filterSearch.toLowerCase();
+        if (!d.titre.toLowerCase().includes(s) && !(d.code || "").toLowerCase().includes(s)) return false;
+      }
       if (filterDateFrom) {
         try { if (parseISO(d.created_at) < parseISO(filterDateFrom)) return false; } catch {}
       }
@@ -270,7 +290,7 @@ export default function Documents() {
       }
       return true;
     });
-  }, [docs, filterProcessId, filterType, filterSearch, filterDateFrom, filterDateTo, filterTagId]);
+  }, [docs, filterStatut, showObsolete, filterProcessId, filterType, filterSearch, filterDateFrom, filterDateTo, filterTagId]);
 
   const openFileViewer = async (doc: Doc) => {
     if (!doc.chemin_fichier) return;
@@ -555,6 +575,19 @@ export default function Documents() {
                 {processes.map(p => <SelectItem key={p.id} value={p.id}>{p.nom}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={filterStatut} onValueChange={setFilterStatut}>
+              <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                {(Object.keys(WORKFLOW_LABELS) as WorkflowStatut[]).map(s => (
+                  <SelectItem key={s} value={s}>{WORKFLOW_LABELS[s]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+              <Checkbox checked={showObsolete} onCheckedChange={v => setShowObsolete(!!v)} />
+              <span>Inclure obsolètes</span>
+            </label>
             <div className="flex items-center gap-1">
               <Label className="text-xs whitespace-nowrap">Du</Label>
               <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="w-[150px]" />
@@ -571,13 +604,27 @@ export default function Documents() {
             <Card><CardContent className="py-12 text-center text-muted-foreground">Aucun document trouvé</CardContent></Card>
           ) : (
             <div className="grid gap-3">
-              {filteredDocs.map(d => (
-                <Card key={d.id}>
+              {filteredDocs.map(d => {
+                const reviewDays = d.date_prochaine_revue ? differenceInDays(parseISO(d.date_prochaine_revue), new Date()) : null;
+                const reviewOverdue = reviewDays !== null && reviewDays < 0;
+                const reviewSoon = reviewDays !== null && reviewDays >= 0 && reviewDays <= 30;
+                return (
+                <Card key={d.id} className={d.statut_workflow === "obsolete" ? "opacity-60" : ""}>
                   <CardContent className="flex items-center justify-between py-4">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       {getDocIcon(d)}
-                      <div>
-                        <p className="font-medium">{d.titre}</p>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {d.code && <Badge variant="outline" className="font-mono text-[10px] px-1.5">{d.code}</Badge>}
+                          <p className="font-medium truncate">{d.titre}</p>
+                          <Badge className={WORKFLOW_COLORS[d.statut_workflow] + " border text-[10px]"}>{WORKFLOW_LABELS[d.statut_workflow]}</Badge>
+                          {reviewOverdue && (
+                            <Badge variant="destructive" className="text-[10px] gap-1"><AlertTriangle className="h-3 w-3" />Revue en retard</Badge>
+                          )}
+                          {reviewSoon && !reviewOverdue && (
+                            <Badge className="text-[10px] bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">Revue dans {reviewDays}j</Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           {typeLabels[d.type_document] ?? d.type_document} • v{d.version}
                           {d.consulte_count > 0 && <> • {d.consulte_count} consultation{d.consulte_count > 1 ? "s" : ""}</>}
@@ -599,7 +646,10 @@ export default function Documents() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {d.nom_fichier && <Badge variant="secondary" className="max-w-[160px] truncate">{d.nom_fichier}</Badge>}
+                      {d.nom_fichier && <Badge variant="secondary" className="max-w-[140px] truncate hidden md:inline-flex">{d.nom_fichier}</Badge>}
+                      <Button variant="ghost" size="icon" onClick={() => setWorkflowDocId(d.id)} title="Cycle d'approbation">
+                        <ShieldCheck className="h-4 w-4" />
+                      </Button>
                       {d.chemin_fichier && (isPdfFile(d.nom_fichier) || isImageFile(d.nom_fichier)) && (
                         <Button variant="ghost" size="icon" onClick={() => openFileViewer(d)} title="Consulter">
                           <Eye className="h-4 w-4" />
@@ -627,7 +677,8 @@ export default function Documents() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -675,6 +726,14 @@ export default function Documents() {
         imageUrl={imageViewerUrl}
         title={imageViewerTitle}
       />
+      {workflowDocId && (
+        <DocumentWorkflowDialog
+          open={!!workflowDocId}
+          onOpenChange={(o) => { if (!o) setWorkflowDocId(null); }}
+          documentId={workflowDocId}
+          onChanged={() => { fetchDocs(); fetchHistory(); }}
+        />
+      )}
     </div>
   );
 }
