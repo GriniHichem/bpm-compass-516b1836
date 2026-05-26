@@ -21,18 +21,28 @@ import {
   MODULE_LABELS,
   ROLE_LABELS,
   DEFAULT_PERMISSIONS,
+  WORKFLOW_MODULES,
   type AppRole,
   type AppModule,
   type ModulePermissions,
   type PermissionLevel,
 } from "@/lib/defaultPermissions";
 
-const PERM_LEVELS: { key: PermissionLevel; label: string }[] = [
+const PERM_LEVELS: { key: PermissionLevel; label: string; workflowOnly?: boolean }[] = [
   { key: "can_read", label: "Lecture" },
   { key: "can_read_detail", label: "Détail" },
   { key: "can_edit", label: "Modifier" },
   { key: "can_delete", label: "Supprimer" },
+  { key: "can_verify", label: "Vérifier", workflowOnly: true },
+  { key: "can_approve", label: "Approuver", workflowOnly: true },
 ];
+
+const WORKFLOW_MODULE_SET = new Set<AppModule>(WORKFLOW_MODULES);
+const isLevelApplicable = (mod: AppModule, level: PermissionLevel) => {
+  const def = PERM_LEVELS.find((p) => p.key === level);
+  if (!def?.workflowOnly) return true;
+  return WORKFLOW_MODULE_SET.has(mod);
+};
 
 const NON_ADMIN_ROLES = ALL_ROLES.filter((r) => r !== "admin" && r !== "super_admin") as Exclude<AppRole, "admin" | "super_admin">[];
 
@@ -73,10 +83,11 @@ export default function AdminPermissions() {
 
     if (permRes.data) {
       const map: Record<string, ModulePermissions> = {};
-      for (const row of permRes.data) {
+      for (const row of permRes.data as any[]) {
         map[`${row.role}:${row.module}`] = {
           can_read: row.can_read, can_read_detail: row.can_read_detail,
           can_edit: row.can_edit, can_delete: row.can_delete,
+          can_verify: row.can_verify ?? false, can_approve: row.can_approve ?? false,
         };
       }
       setOverrides(map);
@@ -86,10 +97,11 @@ export default function AdminPermissions() {
 
     if (crpRes.data) {
       const map: Record<string, ModulePermissions> = {};
-      for (const row of crpRes.data) {
+      for (const row of crpRes.data as any[]) {
         map[`${row.custom_role_id}:${row.module}`] = {
           can_read: row.can_read, can_read_detail: row.can_read_detail,
           can_edit: row.can_edit, can_delete: row.can_delete,
+          can_verify: row.can_verify ?? false, can_approve: row.can_approve ?? false,
         };
       }
       setCustomPerms(map);
@@ -110,11 +122,14 @@ export default function AdminPermissions() {
   const togglePerm = (role: Exclude<AppRole, "admin">, module: AppModule, level: PermissionLevel) => {
     const key = `${role}:${module}`;
     const current = getPermValue(role, module, level);
-    const existing = overrides[key] || {
-      can_read: DEFAULT_PERMISSIONS[role][module]?.can_read ?? false,
-      can_read_detail: DEFAULT_PERMISSIONS[role][module]?.can_read_detail ?? false,
-      can_edit: DEFAULT_PERMISSIONS[role][module]?.can_edit ?? false,
-      can_delete: DEFAULT_PERMISSIONS[role][module]?.can_delete ?? false,
+    const defaults = DEFAULT_PERMISSIONS[role][module];
+    const existing: ModulePermissions = overrides[key] || {
+      can_read: defaults?.can_read ?? false,
+      can_read_detail: defaults?.can_read_detail ?? false,
+      can_edit: defaults?.can_edit ?? false,
+      can_delete: defaults?.can_delete ?? false,
+      can_verify: defaults?.can_verify ?? false,
+      can_approve: defaults?.can_approve ?? false,
     };
     setOverrides((prev) => ({ ...prev, [key]: { ...existing, [level]: !current } }));
   };
@@ -131,7 +146,7 @@ export default function AdminPermissions() {
   const toggleCustomPerm = (crId: string, module: AppModule, level: PermissionLevel) => {
     const key = `${crId}:${module}`;
     const current = getCustomPermValue(crId, module, level);
-    const existing = customPerms[key] || { can_read: false, can_read_detail: false, can_edit: false, can_delete: false };
+    const existing: ModulePermissions = customPerms[key] || { can_read: false, can_read_detail: false, can_edit: false, can_delete: false, can_verify: false, can_approve: false };
     setCustomPerms((prev) => ({ ...prev, [key]: { ...existing, [level]: !current } }));
   };
 
@@ -455,22 +470,26 @@ export default function AdminPermissions() {
                         return (
                           <TableRow key={mod} className={overridden ? "bg-accent/30" : ""}>
                             <TableCell className="font-medium text-sm">{MODULE_LABELS[mod]}</TableCell>
-                            {PERM_LEVELS.map((p) => (
-                              <TableCell key={p.key} className="text-center">
-                                <Checkbox
-                                  checked={
-                                    isStdSelected
-                                      ? getPermValue(selected.role, mod, p.key)
-                                      : getCustomPermValue(selected.role.id, mod, p.key)
-                                  }
-                                  onCheckedChange={() =>
-                                    isStdSelected
-                                      ? togglePerm(selected.role, mod, p.key)
-                                      : toggleCustomPerm(selected.role.id, mod, p.key)
-                                  }
-                                />
-                              </TableCell>
-                            ))}
+                            {PERM_LEVELS.map((p) => {
+                              const applicable = isLevelApplicable(mod, p.key);
+                              return (
+                                <TableCell key={p.key} className="text-center">
+                                  <Checkbox
+                                    disabled={!applicable}
+                                    checked={
+                                      applicable && (isStdSelected
+                                        ? getPermValue(selected.role, mod, p.key)
+                                        : getCustomPermValue(selected.role.id, mod, p.key))
+                                    }
+                                    onCheckedChange={() =>
+                                      applicable && (isStdSelected
+                                        ? togglePerm(selected.role, mod, p.key)
+                                        : toggleCustomPerm(selected.role.id, mod, p.key))
+                                    }
+                                  />
+                                </TableCell>
+                              );
+                            })}
                             {isStdSelected && (
                               <TableCell className="text-center">
                                 {overridden && (

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { ENTITY_TYPE_TO_MODULE } from "@/lib/defaultPermissions";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2, XCircle, Send, ShieldCheck, Archive, History } from "lucide-react";
 
@@ -52,9 +53,12 @@ export function ValidationPanel({
   onApproved,
   className,
 }: ValidationPanelProps) {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const { workflow, config, history, loading, ensureWorkflow, submit, verify, approve, reject, markObsolete } =
     useValidationWorkflow(entityType, entityId);
+  const wfModule = ENTITY_TYPE_TO_MODULE[entityType];
+  const canVerifyByPerm = wfModule ? hasPermission(wfModule, "can_verify") : false;
+  const canApproveByPerm = wfModule ? hasPermission(wfModule, "can_approve") : false;
 
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [verificateurId, setVerificateurId] = useState<string>("");
@@ -184,10 +188,11 @@ export function ValidationPanel({
 
   const statut: ValidationStatut = workflow?.statut ?? "brouillon";
   const canSubmit = ["brouillon", "refuse"].includes(statut);
-  const canVerify = statut === "en_revue" && (user?.id === workflow?.verificateur_user_id);
-  const canApprove = statut === "en_approbation" && (user?.id === workflow?.approbateur_user_id);
-  const canReject = ["en_revue", "en_approbation"].includes(statut);
-  const canObsolete = statut === "approuve";
+  const canVerify = statut === "en_revue" && (user?.id === workflow?.verificateur_user_id || canVerifyByPerm);
+  const canApprove = statut === "en_approbation" && (user?.id === workflow?.approbateur_user_id || canApproveByPerm);
+  const canReject = ["en_revue", "en_approbation"].includes(statut) &&
+    (user?.id === workflow?.verificateur_user_id || user?.id === workflow?.approbateur_user_id || canVerifyByPerm || canApproveByPerm);
+  const canObsolete = statut === "approuve" && (user?.id === workflow?.approbateur_user_id || canApproveByPerm);
 
   return (
     <Card className={className}>

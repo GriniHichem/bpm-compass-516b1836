@@ -5,7 +5,31 @@
  * Admin always has full access — cannot be overridden.
  */
 
-export type PermissionLevel = "can_read" | "can_read_detail" | "can_edit" | "can_delete";
+export type PermissionLevel = "can_read" | "can_read_detail" | "can_edit" | "can_delete" | "can_verify" | "can_approve";
+
+/** Modules that support the validation workflow (can_verify / can_approve) */
+export const WORKFLOW_MODULES: AppModule[] = [
+  "politique_qualite",
+  "processus",
+  "revue_direction",
+  "revue_direction_iso",
+  "actions",
+  "fournisseurs",
+  "satisfaction_client",
+  "documents",
+];
+
+/** Mapping entity_type (validation engine) → AppModule (RBAC matrix) */
+export const ENTITY_TYPE_TO_MODULE: Record<string, AppModule> = {
+  politique_qualite: "politique_qualite",
+  objectif_qualite: "politique_qualite",
+  processus: "processus",
+  revue: "revue_direction",
+  plan_action: "actions",
+  fournisseur: "fournisseurs",
+  enquete_satisfaction: "satisfaction_client",
+  document: "documents",
+};
 
 export type ProcessPermissionLevel = "can_read" | "can_detail" | "can_comment" | "can_edit" | "can_version";
 
@@ -109,13 +133,15 @@ export interface ModulePermissions {
   can_read_detail: boolean;
   can_edit: boolean;
   can_delete: boolean;
+  can_verify: boolean;
+  can_approve: boolean;
 }
 
-const ALL_TRUE: ModulePermissions = { can_read: true, can_read_detail: true, can_edit: true, can_delete: true };
-const READ_ONLY: ModulePermissions = { can_read: true, can_read_detail: false, can_edit: false, can_delete: false };
-const READ_DETAIL: ModulePermissions = { can_read: true, can_read_detail: true, can_edit: false, can_delete: false };
-const READ_EDIT: ModulePermissions = { can_read: true, can_read_detail: true, can_edit: true, can_delete: false };
-const NONE: ModulePermissions = { can_read: false, can_read_detail: false, can_edit: false, can_delete: false };
+const ALL_TRUE: ModulePermissions = { can_read: true, can_read_detail: true, can_edit: true, can_delete: true, can_verify: true, can_approve: true };
+const READ_ONLY: ModulePermissions = { can_read: true, can_read_detail: false, can_edit: false, can_delete: false, can_verify: false, can_approve: false };
+const READ_DETAIL: ModulePermissions = { can_read: true, can_read_detail: true, can_edit: false, can_delete: false, can_verify: false, can_approve: false };
+const READ_EDIT: ModulePermissions = { can_read: true, can_read_detail: true, can_edit: true, can_delete: false, can_verify: false, can_approve: false };
+const NONE: ModulePermissions = { can_read: false, can_read_detail: false, can_edit: false, can_delete: false, can_verify: false, can_approve: false };
 
 /**
  * Default permissions per role per module.

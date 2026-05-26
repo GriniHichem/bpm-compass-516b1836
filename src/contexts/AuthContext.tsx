@@ -59,7 +59,7 @@ export const useAuth = () => useContext(AuthContext);
 
 // Profile columns actually used across the app — avoid SELECT *
 const PROFILE_COLS = "id, nom, prenom, email, fonction, actif, acteur_id, photo_url";
-const ROLE_PERM_COLS = "role, module, can_read, can_read_detail, can_edit, can_delete";
+const ROLE_PERM_COLS = "role, module, can_read, can_read_detail, can_edit, can_delete, can_verify, can_approve";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -125,6 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             can_read_detail: row.can_read_detail,
             can_edit: row.can_edit,
             can_delete: row.can_delete,
+            can_verify: (row as any).can_verify ?? false,
+            can_approve: (row as any).can_approve ?? false,
           };
         }
         setPermOverrides(overrides);
@@ -148,7 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (crIds.length > 0) {
         const { data: crpData } = await supabase
           .from("custom_role_permissions")
-          .select("custom_role_id, module, can_read, can_read_detail, can_edit, can_delete")
+          .select("custom_role_id, module, can_read, can_read_detail, can_edit, can_delete, can_verify, can_approve")
           .in("custom_role_id", crIds);
         if (gen !== fetchGenRef.current) return;
         if (crpData) {
@@ -159,6 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               can_read_detail: row.can_read_detail,
               can_edit: row.can_edit,
               can_delete: row.can_delete,
+              can_verify: (row as any).can_verify ?? false,
+              can_approve: (row as any).can_approve ?? false,
             };
           }
           setCustomRolePerms(crPerms);
