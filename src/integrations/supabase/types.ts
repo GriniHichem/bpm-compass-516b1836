@@ -3213,9 +3213,11 @@ export type Database = {
       }
       quality_objectives: {
         Row: {
+          approbateur_user_id: string | null
           cible: string
           commentaire: string
           created_at: string
+          date_approbation: string | null
           description: string
           echeance: string | null
           id: string
@@ -3228,9 +3230,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          approbateur_user_id?: string | null
           cible?: string
           commentaire?: string
           created_at?: string
+          date_approbation?: string | null
           description?: string
           echeance?: string | null
           id?: string
@@ -3243,9 +3247,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          approbateur_user_id?: string | null
           cible?: string
           commentaire?: string
           created_at?: string
+          date_approbation?: string | null
           description?: string
           echeance?: string | null
           id?: string
