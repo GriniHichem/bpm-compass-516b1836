@@ -92,6 +92,11 @@ export default function Documents() {
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterTagId, setFilterTagId] = useState("all");
+  const [filterStatut, setFilterStatut] = useState<string>("all");
+  const [showObsolete, setShowObsolete] = useState(false);
+
+  // Workflow dialog
+  const [workflowDocId, setWorkflowDocId] = useState<string | null>(null);
 
   // Viewers
   const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null);
