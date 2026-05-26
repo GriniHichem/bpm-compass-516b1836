@@ -914,10 +914,12 @@ export type Database = {
       }
       custom_role_permissions: {
         Row: {
+          can_approve: boolean
           can_delete: boolean
           can_edit: boolean
           can_read: boolean
           can_read_detail: boolean
+          can_verify: boolean
           created_at: string
           custom_role_id: string
           id: string
@@ -925,10 +927,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          can_approve?: boolean
           can_delete?: boolean
           can_edit?: boolean
           can_read?: boolean
           can_read_detail?: boolean
+          can_verify?: boolean
           created_at?: string
           custom_role_id: string
           id?: string
@@ -936,10 +940,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          can_approve?: boolean
           can_delete?: boolean
           can_edit?: boolean
           can_read?: boolean
           can_read_detail?: boolean
+          can_verify?: boolean
           created_at?: string
           custom_role_id?: string
           id?: string
@@ -3663,10 +3669,12 @@ export type Database = {
       }
       role_permissions: {
         Row: {
+          can_approve: boolean
           can_delete: boolean
           can_edit: boolean
           can_read: boolean
           can_read_detail: boolean
+          can_verify: boolean
           created_at: string
           id: string
           module: string
@@ -3674,10 +3682,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          can_approve?: boolean
           can_delete?: boolean
           can_edit?: boolean
           can_read?: boolean
           can_read_detail?: boolean
+          can_verify?: boolean
           created_at?: string
           id?: string
           module: string
@@ -3685,10 +3695,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          can_approve?: boolean
           can_delete?: boolean
           can_edit?: boolean
           can_read?: boolean
           can_read_detail?: boolean
+          can_verify?: boolean
           created_at?: string
           id?: string
           module?: string
@@ -4258,6 +4270,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_validation_right: {
+        Args: { _entity_type: string; _level: string; _user_id: string }
+        Returns: boolean
+      }
       is_my_project_action: {
         Args: { _action_id: string; _user_id: string }
         Returns: boolean
@@ -4335,6 +4351,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      validation_module_for_entity: {
+        Args: { _entity_type: string }
+        Returns: string
       }
       validation_obsolete: {
         Args: { _motif: string; _workflow_id: string }
