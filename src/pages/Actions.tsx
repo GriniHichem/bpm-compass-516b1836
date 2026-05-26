@@ -13,7 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, FolderKanban, Zap, ChevronDown, ChevronRight, StickyNote, User, Trash2, Pencil, CalendarRange, Search, AlertTriangle, TrendingUp, Clock, LayoutGrid, List as ListIcon } from "lucide-react";
+import { Plus, FolderKanban, Zap, ChevronDown, ChevronRight, StickyNote, User, Trash2, Pencil, CalendarRange, Search, AlertTriangle, TrendingUp, Clock, LayoutGrid, List as ListIcon, ShieldCheck } from "lucide-react";
+import { ValidationPanel } from "@/components/validation/ValidationPanel";
 import { FilterDrawer } from "@/components/ui/filter-drawer";
 import { Fab } from "@/components/ui/fab";
 import { differenceInDays, parseISO } from "date-fns";
@@ -74,6 +75,7 @@ export default function Actions() {
   const [expandedAction, setExpandedAction] = useState<string | null>(null);
   const [notesMap, setNotesMap] = useState<Record<string, ActionNote[]>>({});
   const [newNote, setNewNote] = useState<Record<string, { contenu: string; avancement: string }>>({});
+  const [validationActionId, setValidationActionId] = useState<string | null>(null);
 
   const fetchProjects = async () => {
     const { data } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
