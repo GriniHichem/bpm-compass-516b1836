@@ -12,12 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, FileText, Target, X, Download } from "lucide-react";
+import { Plus, Edit, Trash2, FileText, Target, X, Download, ShieldCheck } from "lucide-react";
 import { exportPolitiqueQualitePdf, exportObjectifsQualitePdf } from "@/lib/exportStrategicPdf";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import RichTextEditor from "@/components/RichTextEditor";
 import { HelpTooltip } from "@/components/HelpTooltip";
+import { ValidationPanel } from "@/components/validation/ValidationPanel";
 
 const statutPolicyColors: Record<string, string> = {
   brouillon: "bg-muted text-muted-foreground",
