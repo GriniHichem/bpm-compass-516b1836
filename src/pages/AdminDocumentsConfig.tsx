@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { FolderOpen, Plus, Trash2, Tag, Settings, ChevronDown } from "lucide-react";
+import { FolderOpen, Plus, Trash2, Tag, Settings, ChevronDown, Hash } from "lucide-react";
 import { useActeurs } from "@/hooks/useActeurs";
 
 interface DocType { id: string; label: string; code: string; actif: boolean; }
