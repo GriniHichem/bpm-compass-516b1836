@@ -58,6 +58,7 @@ L'application est **100 % auto-hébergeable** (architecture Groupe AMOUR), sans 
 - L'accès se fait via **email + mot de passe** uniquement.
 - ❌ Pas d'inscription libre. Les comptes sont créés par un Administrateur.
 - ❌ Pas de récupération automatique du mot de passe sur l'écran de connexion.
+- Sur mobile, le clavier s'adapte automatiquement (touche `@` pour l'email, complétion du mot de passe proposée).
 
 ### 2.2 Modification du mot de passe
 - Une fois connecté, cliquez sur l'**icône clé** dans l'en-tête.
@@ -135,6 +136,7 @@ L'éditeur utilise **TipTap** plein écran, format **A4**, police **Serif** pour
 - Fin du flux : nœud rouge `__end__`.
 - Passerelles **AND / OR / XOR** : minimum **2 branches** obligatoires.
 - Export PNG / PDF haute résolution, layout orthogonal large pour éviter les chevauchements.
+- Sur mobile : le diagramme reste utilisable par **défilement horizontal** ; les panneaux latéraux deviennent des **feuilles plein écran** (Sheet).
 
 ---
 
@@ -225,6 +227,7 @@ Cycle ISO 9001 strict :
 
 ### 12.4 Espace de planification
 - **Gantt plein écran** + panneau latéral redimensionnable.
+- Sur mobile : le Gantt s'affiche avec une **barre de défilement horizontale** ; les en-têtes de page se compactent automatiquement.
 
 ### 12.5 Commentaires privés
 - Badge **cadenas** + bordure ambre.
@@ -304,8 +307,9 @@ Une table commune sert les **revues de processus** et les **revues de direction*
 ## 19. Recherche globale & Aide contextuelle
 
 ### 19.1 Recherche
-- Raccourci **Cmd / Ctrl + K**.
+- Raccourci **Cmd / Ctrl + K** (ou icône loupe dans la barre supérieure sur mobile).
 - Recherche **multi-entités**, asynchrone, avec debounce et annulation.
+- La fenêtre de résultats s'adapte à la largeur de l'écran.
 
 ### 19.2 Aide contextuelle
 - Composant `HelpTooltip` mappé sur **plus de 60 définitions** issues des **articles 4 à 10** de la norme ISO 9001:2015.
