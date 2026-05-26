@@ -21,6 +21,10 @@ interface DocActeurPerm {
   can_read: boolean; can_download: boolean; can_delete: boolean;
   allowed_type_ids: string[]; allowed_tag_ids: string[];
 }
+interface CodeRule {
+  id: string; type_document: string; prefix: string; padding: number;
+  next_seq: number; separator: string; active: boolean;
+}
 
 export default function AdminDocumentsConfig() {
   const { hasPermission } = useAuth();
