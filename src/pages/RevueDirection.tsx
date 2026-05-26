@@ -136,6 +136,7 @@ export default function RevueDirection() {
                   <div className="flex gap-1">
                     <Button variant="ghost" size="icon" onClick={() => { setViewing(r); setViewDialog(true); }}><Eye className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => exportRevueDirectionPdf(r.id)} title="Exporter PDF"><Download className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => setValidationId(r.id)} title="Validation"><ShieldCheck className="h-4 w-4" /></Button>
                     {canEdit && <>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Edit className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => deleteMut.mutate(r.id)}><Trash2 className="h-4 w-4" /></Button>
