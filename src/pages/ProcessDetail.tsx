@@ -496,7 +496,10 @@ export default function ProcessDetail() {
             entityType="processus"
             entityId={id!}
             entityLabel={`${process.code} — v${process.version_courante}`}
-            onApproved={() => loadProcess()}
+            onApproved={async () => {
+              const { data } = await supabase.from("processes").select("*").eq("id", id).single();
+              setProcess(data);
+            }}
           />
         </TabsContent>
         {process.statut === "archive" && (
