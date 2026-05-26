@@ -48,6 +48,7 @@ const DashboardIndicateurs = lazy(() => import("./pages/DashboardIndicateurs"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const AdminNotificationsConfig = lazy(() => import("./pages/AdminNotificationsConfig"));
 const AdminDocumentsConfig = lazy(() => import("./pages/AdminDocumentsConfig"));
+const ValidationsDashboard = lazy(() => import("./pages/ValidationsDashboard"));
 const AdminEmailLogs = lazy(() => import("./pages/AdminEmailLogs"));
 const Modules = lazy(() => import("./pages/Modules"));
 const ProcessFlowchartPage = lazy(() => import("./pages/ProcessFlowchartPage"));
