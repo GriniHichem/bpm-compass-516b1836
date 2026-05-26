@@ -9,7 +9,7 @@ import {
   BarChart3, AlertTriangle, Contact, Loader2, ArrowRight,
   LayoutDashboard, Users, Map, ScrollText, BookOpen, Target,
   GraduationCap, SmilePlus, Truck, CalendarCheck, ClipboardList,
-  Settings, Landmark, FolderOpen, Lock, Crown, AlertOctagon,
+  Settings, Landmark, FolderOpen, Lock, Crown, AlertOctagon, FolderKanban,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGlobalSearch, SearchEntityType, SearchResult } from "@/hooks/useGlobalSearch";
