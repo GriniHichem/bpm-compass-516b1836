@@ -151,11 +151,14 @@ export default function Documents() {
     });
 
     let enriched: Doc[] = (docsData ?? []).map((d: any) => ({
-      id: d.id, titre: d.titre, type_document: d.type_document, version: d.version,
+      id: d.id, titre: d.titre, code: d.code ?? null, type_document: d.type_document, version: d.version,
       archive: d.archive, nom_fichier: d.nom_fichier, chemin_fichier: d.chemin_fichier,
       created_at: d.created_at, process_ids: dpMap.get(d.id) || [],
       consulte_count: d.consulte_count ?? 0, retired_at: d.retired_at,
       tag_ids: tagMap.get(d.id) || [],
+      statut_workflow: (d.statut_workflow ?? "brouillon") as WorkflowStatut,
+      date_prochaine_revue: d.date_prochaine_revue ?? null,
+      date_approbation: d.date_approbation ?? null,
     }));
 
     if (isOnlyResponsable) {
