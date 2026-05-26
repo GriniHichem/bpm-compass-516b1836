@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { ENTITY_TYPE_TO_MODULE } from "@/lib/defaultPermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,7 +39,7 @@ const STATUT_LABELS: Record<string, string> = {
 };
 
 export default function ValidationsDashboard() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const [loading, setLoading] = useState(true);
   const [toVerify, setToVerify] = useState<Row[]>([]);
   const [toApprove, setToApprove] = useState<Row[]>([]);
@@ -52,6 +53,7 @@ export default function ValidationsDashboard() {
       const map = (rows: any[]): Row[] =>
         (rows ?? []).map((r) => ({ ...r, type_label: TYPE_LABELS[r.entity_type] ?? r.entity_type }));
 
+      // Workflows where the user is nominally designated
       const q1 = supabase.from("validation_workflows" as any).select("*")
         .eq("verificateur_user_id", user.id).eq("statut", "en_revue").order("updated_at", { ascending: false });
       const q2 = supabase.from("validation_workflows" as any).select("*")
@@ -61,14 +63,41 @@ export default function ValidationsDashboard() {
       const q4 = supabase.from("validation_workflows" as any).select("*")
         .eq("redacteur_user_id", user.id).in("statut", ["en_revue", "en_approbation"]).order("updated_at", { ascending: false });
 
-      const [r1, r2, r3, r4] = await Promise.all([q1, q2, q3, q4]);
-      setToVerify(map((r1.data as any[]) ?? []));
-      setToApprove(map((r2.data as any[]) ?? []));
+      // Workflows the user can act on via matrix permissions (admin/rmq bypass naturally)
+      const verifyEntityTypes = Object.entries(ENTITY_TYPE_TO_MODULE)
+        .filter(([, mod]) => hasPermission(mod, "can_verify"))
+        .map(([entityType]) => entityType);
+      const approveEntityTypes = Object.entries(ENTITY_TYPE_TO_MODULE)
+        .filter(([, mod]) => hasPermission(mod, "can_approve"))
+        .map(([entityType]) => entityType);
+
+      const q5 = verifyEntityTypes.length
+        ? supabase.from("validation_workflows" as any).select("*")
+            .in("entity_type", verifyEntityTypes).eq("statut", "en_revue").order("updated_at", { ascending: false })
+        : Promise.resolve({ data: [] as any[] });
+      const q6 = approveEntityTypes.length
+        ? supabase.from("validation_workflows" as any).select("*")
+            .in("entity_type", approveEntityTypes).eq("statut", "en_approbation").order("updated_at", { ascending: false })
+        : Promise.resolve({ data: [] as any[] });
+
+      const [r1, r2, r3, r4, r5, r6] = await Promise.all([q1, q2, q3, q4, q5, q6]);
+
+      // Merge + dedupe by id
+      const dedupe = (rows: any[]) => {
+        const seen = new Set<string>();
+        const out: any[] = [];
+        for (const r of rows) {
+          if (!seen.has(r.id)) { seen.add(r.id); out.push(r); }
+        }
+        return out;
+      };
+      setToVerify(map(dedupe([...((r1.data as any[]) ?? []), ...((r5.data as any[]) ?? [])])));
+      setToApprove(map(dedupe([...((r2.data as any[]) ?? []), ...((r6.data as any[]) ?? [])])));
       setRefused(map((r3.data as any[]) ?? []));
       setSubmitted(map((r4.data as any[]) ?? []));
       setLoading(false);
     })();
-  }, [user]);
+  }, [user, hasPermission]);
 
   const renderTable = (rows: Row[]) => (
     <Table>
