@@ -209,6 +209,7 @@ export default function PolitiqueQualite() {
                     {canEdit && (
                       <TableCell>
                         <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" title="Validation" onClick={() => setValidationObjId(o.id)}><ShieldCheck className="h-4 w-4" /></Button>
                           <Button variant="ghost" size="icon" onClick={() => openEditObj(o)}><Edit className="h-4 w-4" /></Button>
                           <Button variant="ghost" size="icon" onClick={() => deleteObjMut.mutate(o.id)}><Trash2 className="h-4 w-4" /></Button>
                         </div>
