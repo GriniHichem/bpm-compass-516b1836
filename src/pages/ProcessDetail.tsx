@@ -320,6 +320,9 @@ export default function ProcessDetail() {
           <TabsTrigger value="tasks" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm rounded-lg text-sm px-4 py-2 transition-all">
             <ListChecks className="h-3.5 w-3.5" /> Activités
           </TabsTrigger>
+          <TabsTrigger value="validation" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm rounded-lg text-sm px-4 py-2 transition-all">
+            <ShieldCheck className="h-3.5 w-3.5" /> Validation
+          </TabsTrigger>
           {process.statut === "archive" && (
             <TabsTrigger value="archive" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm rounded-lg text-sm px-4 py-2 transition-all">
               <Archive className="h-3.5 w-3.5" /> Objets liés
