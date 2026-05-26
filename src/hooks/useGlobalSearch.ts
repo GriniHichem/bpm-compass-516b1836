@@ -10,7 +10,8 @@ export type SearchEntityType =
   | "documents"
   | "indicateurs"
   | "risques"
-  | "acteurs";
+  | "acteurs"
+  | "projets";
 
 export interface SearchResult {
   id: string;
@@ -31,6 +32,7 @@ const TYPE_LABELS: Record<Exclude<SearchEntityType, "all">, string> = {
   indicateurs: "Indicateur",
   risques: "Risque / Enjeu",
   acteurs: "Acteur",
+  projets: "Plan d'action",
 };
 
 async function searchProcessus(term: string): Promise<SearchResult[]> {
@@ -131,6 +133,18 @@ async function searchActeurs(term: string): Promise<SearchResult[]> {
   }));
 }
 
+async function searchProjets(term: string): Promise<SearchResult[]> {
+  const { data } = await supabase
+    .from("projects")
+    .select("id, title, slogan, description, statut")
+    .or(`title.ilike.${term},slogan.ilike.${term},description.ilike.${term}`)
+    .limit(10);
+  return (data ?? []).map((p) => ({
+    id: p.id, title: p.title, subtitle: p.slogan ?? p.description?.slice(0, 60),
+    type: "projets" as const, typeLabel: TYPE_LABELS.projets, url: `/actions/${p.id}`, status: p.statut,
+  }));
+}
+
 const SEARCH_FNS: Record<Exclude<SearchEntityType, "all">, (term: string) => Promise<SearchResult[]>> = {
   processus: searchProcessus,
   actions: searchActions,
@@ -140,6 +154,7 @@ const SEARCH_FNS: Record<Exclude<SearchEntityType, "all">, (term: string) => Pro
   indicateurs: searchIndicateurs,
   risques: searchRisques,
   acteurs: searchActeurs,
+  projets: searchProjets,
 };
 
 export function useGlobalSearch() {

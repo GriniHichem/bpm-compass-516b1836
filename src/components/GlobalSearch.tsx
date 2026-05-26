@@ -9,7 +9,7 @@ import {
   BarChart3, AlertTriangle, Contact, Loader2, ArrowRight,
   LayoutDashboard, Users, Map, ScrollText, BookOpen, Target,
   GraduationCap, SmilePlus, Truck, CalendarCheck, ClipboardList,
-  Settings, Landmark, FolderOpen, Lock, Crown, AlertOctagon,
+  Settings, Landmark, FolderOpen, Lock, Crown, AlertOctagon, FolderKanban,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGlobalSearch, SearchEntityType, SearchResult } from "@/hooks/useGlobalSearch";
@@ -50,6 +50,7 @@ const navItems: NavItem[] = [
 const FILTERS: { value: SearchEntityType; label: string; icon: any }[] = [
   { value: "all", label: "Tout", icon: Search },
   { value: "processus", label: "Processus", icon: Network },
+  { value: "projets", label: "Plans d'action", icon: FolderKanban },
   { value: "actions", label: "Actions", icon: Zap },
   { value: "audits", label: "Audits", icon: ClipboardCheck },
   { value: "nonconformites", label: "NC", icon: XCircle },
@@ -68,6 +69,7 @@ const TYPE_COLORS: Record<string, string> = {
   indicateurs: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300",
   risques: "bg-orange-500/15 text-orange-700 dark:text-orange-300",
   acteurs: "bg-pink-500/15 text-pink-700 dark:text-pink-300",
+  projets: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
 };
 
 const STATUS_COLORS: Record<string, string> = {
