@@ -726,6 +726,14 @@ export default function Documents() {
         imageUrl={imageViewerUrl}
         title={imageViewerTitle}
       />
+      {workflowDocId && (
+        <DocumentWorkflowDialog
+          open={!!workflowDocId}
+          onOpenChange={(o) => { if (!o) setWorkflowDocId(null); }}
+          documentId={workflowDocId}
+          onChanged={() => { fetchDocs(); fetchHistory(); }}
+        />
+      )}
     </div>
   );
 }
