@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Save, FileText, Download, Eye, FileDown, CopyPlus, Layers, ListChecks, Archive, Settings2, Users, Target, ArrowRightLeft, Package, Workflow } from "lucide-react";
+import { ArrowLeft, Save, FileText, Download, Eye, FileDown, CopyPlus, Layers, ListChecks, Archive, Settings2, Users, Target, ArrowRightLeft, Package, Workflow, ShieldCheck } from "lucide-react";
+import { ValidationPanel } from "@/components/validation/ValidationPanel";
 import { PdfViewerDialog } from "@/components/PdfViewerDialog";
 import { exportProcessPdf } from "@/lib/exportProcessPdf";
 import { cn } from "@/lib/utils";
