@@ -52,6 +52,7 @@ export default function RevueDirection() {
   const [editing, setEditing] = useState<any>(null);
   const [viewing, setViewing] = useState<any>(null);
   const [form, setForm] = useState(emptyForm);
+  const [validationId, setValidationId] = useState<string | null>(null);
   const [activeField, setActiveField] = useState<string>("participants");
 
   const { data: reviews = [] } = useQuery({
