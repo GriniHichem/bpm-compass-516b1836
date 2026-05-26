@@ -167,6 +167,19 @@ export default function Fournisseurs() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!validationId} onOpenChange={(o) => !o && setValidationId(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Validation du fournisseur critique</DialogTitle></DialogHeader>
+          {validationId && (
+            <ValidationPanel
+              entityType="fournisseur"
+              entityId={validationId}
+              onApproved={() => qc.invalidateQueries({ queryKey: ["suppliers"] })}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
