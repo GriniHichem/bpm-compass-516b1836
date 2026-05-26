@@ -470,22 +470,26 @@ export default function AdminPermissions() {
                         return (
                           <TableRow key={mod} className={overridden ? "bg-accent/30" : ""}>
                             <TableCell className="font-medium text-sm">{MODULE_LABELS[mod]}</TableCell>
-                            {PERM_LEVELS.map((p) => (
-                              <TableCell key={p.key} className="text-center">
-                                <Checkbox
-                                  checked={
-                                    isStdSelected
-                                      ? getPermValue(selected.role, mod, p.key)
-                                      : getCustomPermValue(selected.role.id, mod, p.key)
-                                  }
-                                  onCheckedChange={() =>
-                                    isStdSelected
-                                      ? togglePerm(selected.role, mod, p.key)
-                                      : toggleCustomPerm(selected.role.id, mod, p.key)
-                                  }
-                                />
-                              </TableCell>
-                            ))}
+                            {PERM_LEVELS.map((p) => {
+                              const applicable = isLevelApplicable(mod, p.key);
+                              return (
+                                <TableCell key={p.key} className="text-center">
+                                  <Checkbox
+                                    disabled={!applicable}
+                                    checked={
+                                      applicable && (isStdSelected
+                                        ? getPermValue(selected.role, mod, p.key)
+                                        : getCustomPermValue(selected.role.id, mod, p.key))
+                                    }
+                                    onCheckedChange={() =>
+                                      applicable && (isStdSelected
+                                        ? togglePerm(selected.role, mod, p.key)
+                                        : toggleCustomPerm(selected.role.id, mod, p.key))
+                                    }
+                                  />
+                                </TableCell>
+                              );
+                            })}
                             {isStdSelected && (
                               <TableCell className="text-center">
                                 {overridden && (
