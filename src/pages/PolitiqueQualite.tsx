@@ -311,6 +311,20 @@ export default function PolitiqueQualite() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Validation dialog par objectif */}
+      <Dialog open={!!validationObjId} onOpenChange={(o) => !o && setValidationObjId(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Validation de l'objectif qualité</DialogTitle></DialogHeader>
+          {validationObjId && (
+            <ValidationPanel
+              entityType="objectif_qualite"
+              entityId={validationObjId}
+              onApproved={() => qc.invalidateQueries({ queryKey: ["quality_objectives"] })}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
