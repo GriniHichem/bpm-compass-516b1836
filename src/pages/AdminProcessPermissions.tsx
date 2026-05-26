@@ -241,12 +241,14 @@ export default function AdminProcessPermissions() {
           await supabase.from("process_role_permissions").update({
             can_read: p.can_read, can_detail: p.can_detail, can_comment: p.can_comment,
             can_edit: p.can_edit, can_version: p.can_version,
-          }).eq("id", p.id);
+            can_verify: p.can_verify, can_approve: p.can_approve,
+          } as any).eq("id", p.id);
         } else {
           const { data } = await supabase.from("process_role_permissions").insert({
             role: p.role as any, custom_role_id: p.custom_role_id, process_id: p.process_id,
             can_read: p.can_read, can_detail: p.can_detail, can_comment: p.can_comment,
             can_edit: p.can_edit, can_version: p.can_version,
+            can_verify: p.can_verify, can_approve: p.can_approve,
           } as any).select().single();
           if (data) setPerms((prev) => prev.map((pp) => (pp === p ? { ...pp, id: data.id } : pp)));
         }
@@ -254,7 +256,7 @@ export default function AdminProcessPermissions() {
           await supabase.from("permission_audit_log").insert({
             changed_by: user.id, target_role: p.role as any, target_custom_role_id: p.custom_role_id,
             process_id: p.process_id,
-            new_perms: { can_read: p.can_read, can_detail: p.can_detail, can_comment: p.can_comment, can_edit: p.can_edit, can_version: p.can_version },
+            new_perms: { can_read: p.can_read, can_detail: p.can_detail, can_comment: p.can_comment, can_edit: p.can_edit, can_version: p.can_version, can_verify: p.can_verify, can_approve: p.can_approve },
           } as any);
         }
       }
