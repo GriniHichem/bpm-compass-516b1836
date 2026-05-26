@@ -39,6 +39,8 @@ interface PermRow {
   can_comment: boolean;
   can_edit: boolean;
   can_version: boolean;
+  can_verify: boolean;
+  can_approve: boolean;
 }
 
 interface AuditEntry {
@@ -53,22 +55,27 @@ interface AuditEntry {
   profiles?: { nom: string; prenom: string } | null;
 }
 
-const LEVELS = ["can_read", "can_detail", "can_comment", "can_edit", "can_version"] as const;
+const LEVELS = ["can_read", "can_detail", "can_comment", "can_edit", "can_version", "can_verify", "can_approve"] as const;
 const LEVEL_LABELS: Record<string, string> = {
   can_read: "Lecture",
   can_detail: "Détail",
   can_comment: "Commenter",
   can_edit: "Modifier",
   can_version: "Version",
+  can_verify: "Vérifier",
+  can_approve: "Approuver",
 };
 
 const TEMPLATES: Record<string, Record<string, boolean>> = {
-  lecture_seule: { can_read: true, can_detail: false, can_comment: false, can_edit: false, can_version: false },
-  lecture_detail: { can_read: true, can_detail: true, can_comment: false, can_edit: false, can_version: false },
-  consultation: { can_read: true, can_detail: true, can_comment: true, can_edit: false, can_version: false },
-  modification: { can_read: true, can_detail: true, can_comment: true, can_edit: true, can_version: false },
-  acces_complet: { can_read: true, can_detail: true, can_comment: true, can_edit: true, can_version: true },
-  aucun: { can_read: false, can_detail: false, can_comment: false, can_edit: false, can_version: false },
+  lecture_seule:   { can_read: true,  can_detail: false, can_comment: false, can_edit: false, can_version: false, can_verify: false, can_approve: false },
+  lecture_detail:  { can_read: true,  can_detail: true,  can_comment: false, can_edit: false, can_version: false, can_verify: false, can_approve: false },
+  consultation:    { can_read: true,  can_detail: true,  can_comment: true,  can_edit: false, can_version: false, can_verify: false, can_approve: false },
+  modification:    { can_read: true,  can_detail: true,  can_comment: true,  can_edit: true,  can_version: false, can_verify: false, can_approve: false },
+  verificateur:    { can_read: true,  can_detail: true,  can_comment: true,  can_edit: false, can_version: false, can_verify: true,  can_approve: false },
+  approbateur:     { can_read: true,  can_detail: true,  can_comment: true,  can_edit: false, can_version: false, can_verify: false, can_approve: true  },
+  validation_full: { can_read: true,  can_detail: true,  can_comment: true,  can_edit: false, can_version: false, can_verify: true,  can_approve: true  },
+  acces_complet:   { can_read: true,  can_detail: true,  can_comment: true,  can_edit: true,  can_version: true,  can_verify: true,  can_approve: true  },
+  aucun:           { can_read: false, can_detail: false, can_comment: false, can_edit: false, can_version: false, can_verify: false, can_approve: false },
 };
 
 const TEMPLATE_LABELS: Record<string, string> = {
@@ -76,6 +83,9 @@ const TEMPLATE_LABELS: Record<string, string> = {
   lecture_detail: "Lecture + Détail",
   consultation: "Consultation (+ Commenter)",
   modification: "Modification complète",
+  verificateur: "Vérificateur (workflow)",
+  approbateur: "Approbateur (workflow)",
+  validation_full: "Vérifier + Approuver",
   acces_complet: "Accès complet",
   aucun: "Aucun accès (héritage global)",
 };
