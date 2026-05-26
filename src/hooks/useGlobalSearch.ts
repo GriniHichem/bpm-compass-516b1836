@@ -32,6 +32,7 @@ const TYPE_LABELS: Record<Exclude<SearchEntityType, "all">, string> = {
   indicateurs: "Indicateur",
   risques: "Risque / Enjeu",
   acteurs: "Acteur",
+  projets: "Plan d'action",
 };
 
 async function searchProcessus(term: string): Promise<SearchResult[]> {
