@@ -2386,10 +2386,12 @@ export type Database = {
       }
       process_role_permissions: {
         Row: {
+          can_approve: boolean
           can_comment: boolean
           can_detail: boolean
           can_edit: boolean
           can_read: boolean
+          can_verify: boolean
           can_version: boolean
           created_at: string
           custom_role_id: string | null
@@ -2399,10 +2401,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          can_approve?: boolean
           can_comment?: boolean
           can_detail?: boolean
           can_edit?: boolean
           can_read?: boolean
+          can_verify?: boolean
           can_version?: boolean
           created_at?: string
           custom_role_id?: string | null
@@ -2412,10 +2416,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          can_approve?: boolean
           can_comment?: boolean
           can_detail?: boolean
           can_edit?: boolean
           can_read?: boolean
+          can_verify?: boolean
           can_version?: boolean
           created_at?: string
           custom_role_id?: string | null
@@ -4270,10 +4276,20 @@ export type Database = {
         }
         Returns: boolean
       }
-      has_validation_right: {
-        Args: { _entity_type: string; _level: string; _user_id: string }
-        Returns: boolean
-      }
+      has_validation_right:
+        | {
+            Args: { _entity_type: string; _level: string; _user_id: string }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              _entity_id?: string
+              _entity_type: string
+              _level: string
+              _user_id: string
+            }
+            Returns: boolean
+          }
       is_my_project_action: {
         Args: { _action_id: string; _user_id: string }
         Returns: boolean
