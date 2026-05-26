@@ -363,6 +363,35 @@ Une table commune sert les **revues de processus** et les **revues de direction*
 
 ---
 
+## 23. Utilisation sur mobile & responsive
+
+L'application est entièrement utilisable sur **smartphone** (≤640 px) et **tablette** (641–1023 px). Les fonctionnalités métier restent identiques ; seule la présentation s'adapte.
+
+### 23.1 Navigation
+- La **barre latérale** devient un **menu burger** plein écran (Sheet) sur mobile.
+- Les icônes de notification et de recherche conservent une **zone tactile** de 44 × 44 px minimum.
+- Le fil d'Ariane est masqué sur petit écran pour gagner de la place.
+
+### 23.2 Listes et tableaux
+- Les tableaux denses se transforment en **cartes empilées** avec titre, 2–3 métadonnées, badge de statut et menu d'actions.
+- Les onglets longs (détail projet, détail processus, revues de direction, compétences) deviennent **défilables horizontalement**.
+
+### 23.3 Formulaires et saisie
+- Les champs de saisie ont une hauteur minimum de **44 px** (`h-11`) pour éviter les erreurs de toucher.
+- La taille de police des inputs est fixée à **16 px** : cela évite le **zoom automatique iOS** lors du focus.
+- Les dialogues lourds passent en **plein écran** sur mobile avec en-tête fixe et boutons d'action en bas de l'écran.
+
+### 23.4 Vues complexes (Gantt, BPMN, flowchart)
+- **Planning Gantt** : défilement horizontal natif sur la zone du diagramme.
+- **Logigramme & BPMN** : zoom et panoramique tactiles ; panneau de propriétés en feuille latérale plein écran.
+
+### 23.5 Accessibilité & confort
+- Prise en charge du mode **préfère réduire les mouvements** (`prefers-reduced-motion`) : les animations sont désactivées automatiquement.
+- Les toasts et alertes se positionnent en **haut de l'écran** sur mobile pour ne pas être masqués par le clavier virtuel.
+- Le bouton d'action principal (FAB) flotte en bas à droite sur les pages liste pour un accès rapide au pouce.
+
+---
+
 ## 📞 Support
 
 Pour toute assistance, contactez votre **Administrateur SMQ** ou le **Groupe AMOUR**.
