@@ -1,7 +1,7 @@
 # 📘 Manuel Utilisateur — Plateforme SMQ ISO 9001
 
 **Éditeur** : Groupe AMOUR
-**Version** : 2026.04
+**Version** : 2026.05
 **Norme de référence** : ISO 9001:2015
 **Devise** : Dinar Algérien (DA)
 **Langue** : Français
@@ -32,6 +32,7 @@
 20. [Journal d'activité](#20-journal-dactivité)
 21. [Licence](#21-licence)
 22. [Performance & Bonnes pratiques](#22-performance--bonnes-pratiques)
+23. [Utilisation sur mobile & responsive](#23-utilisation-sur-mobile--responsive)
 
 ---
 
@@ -341,6 +342,7 @@ Une table commune sert les **revues de processus** et les **revues de direction*
 - Purge périodique des `audit_logs` > 180 jours via `cleanup_old_audit_logs`.
 - Auth en flux **PKCE**, événements Realtime **throttle**.
 - Préchargement DNS / preconnect du backend.
+- Réduction des animations automatique si l'utilisateur active `préfère réduire les mouvements` dans son appareil.
 
 ### 22.2 Suppression sécurisée
 - Confirmation par saisie de **« je confirme »**.
