@@ -4053,6 +4053,148 @@ export type Database = {
         }
         Relationships: []
       }
+      validation_entity_types: {
+        Row: {
+          active: boolean
+          allowed_approver_roles: string[]
+          auto_action_on_approve: string | null
+          code: string
+          created_at: string
+          label_fr: string
+          requires_approbateur: boolean
+          requires_redacteur: boolean
+          requires_verificateur: boolean
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          allowed_approver_roles?: string[]
+          auto_action_on_approve?: string | null
+          code: string
+          created_at?: string
+          label_fr: string
+          requires_approbateur?: boolean
+          requires_redacteur?: boolean
+          requires_verificateur?: boolean
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          allowed_approver_roles?: string[]
+          auto_action_on_approve?: string | null
+          code?: string
+          created_at?: string
+          label_fr?: string
+          requires_approbateur?: boolean
+          requires_redacteur?: boolean
+          requires_verificateur?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      validation_history: {
+        Row: {
+          actor_user_id: string | null
+          commentaire: string | null
+          created_at: string
+          from_statut: string | null
+          id: string
+          to_statut: string
+          workflow_id: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          commentaire?: string | null
+          created_at?: string
+          from_statut?: string | null
+          id?: string
+          to_statut: string
+          workflow_id: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          commentaire?: string | null
+          created_at?: string
+          from_statut?: string | null
+          id?: string
+          to_statut?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_history_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "validation_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      validation_workflows: {
+        Row: {
+          approbateur_user_id: string | null
+          commentaire_obsolescence: string | null
+          commentaire_refus: string | null
+          created_at: string
+          created_by: string | null
+          date_approbation: string | null
+          date_obsolescence: string | null
+          date_soumission: string | null
+          date_verification: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          redacteur_user_id: string | null
+          statut: string
+          updated_at: string
+          verificateur_user_id: string | null
+        }
+        Insert: {
+          approbateur_user_id?: string | null
+          commentaire_obsolescence?: string | null
+          commentaire_refus?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_approbation?: string | null
+          date_obsolescence?: string | null
+          date_soumission?: string | null
+          date_verification?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          redacteur_user_id?: string | null
+          statut?: string
+          updated_at?: string
+          verificateur_user_id?: string | null
+        }
+        Update: {
+          approbateur_user_id?: string | null
+          commentaire_obsolescence?: string | null
+          commentaire_refus?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_approbation?: string | null
+          date_obsolescence?: string | null
+          date_soumission?: string | null
+          date_verification?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          redacteur_user_id?: string | null
+          statut?: string
+          updated_at?: string
+          verificateur_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "validation_workflows_entity_type_fkey"
+            columns: ["entity_type"]
+            isOneToOne: false
+            referencedRelation: "validation_entity_types"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -4109,6 +4251,172 @@ export type Database = {
           _reason?: string
         }
         Returns: undefined
+      }
+      validation_approve: {
+        Args: { _commentaire?: string; _workflow_id: string }
+        Returns: {
+          approbateur_user_id: string | null
+          commentaire_obsolescence: string | null
+          commentaire_refus: string | null
+          created_at: string
+          created_by: string | null
+          date_approbation: string | null
+          date_obsolescence: string | null
+          date_soumission: string | null
+          date_verification: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          redacteur_user_id: string | null
+          statut: string
+          updated_at: string
+          verificateur_user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "validation_workflows"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      validation_get_or_create: {
+        Args: { _entity_id: string; _entity_type: string }
+        Returns: {
+          approbateur_user_id: string | null
+          commentaire_obsolescence: string | null
+          commentaire_refus: string | null
+          created_at: string
+          created_by: string | null
+          date_approbation: string | null
+          date_obsolescence: string | null
+          date_soumission: string | null
+          date_verification: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          redacteur_user_id: string | null
+          statut: string
+          updated_at: string
+          verificateur_user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "validation_workflows"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      validation_obsolete: {
+        Args: { _motif: string; _workflow_id: string }
+        Returns: {
+          approbateur_user_id: string | null
+          commentaire_obsolescence: string | null
+          commentaire_refus: string | null
+          created_at: string
+          created_by: string | null
+          date_approbation: string | null
+          date_obsolescence: string | null
+          date_soumission: string | null
+          date_verification: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          redacteur_user_id: string | null
+          statut: string
+          updated_at: string
+          verificateur_user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "validation_workflows"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      validation_reject: {
+        Args: { _motif: string; _workflow_id: string }
+        Returns: {
+          approbateur_user_id: string | null
+          commentaire_obsolescence: string | null
+          commentaire_refus: string | null
+          created_at: string
+          created_by: string | null
+          date_approbation: string | null
+          date_obsolescence: string | null
+          date_soumission: string | null
+          date_verification: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          redacteur_user_id: string | null
+          statut: string
+          updated_at: string
+          verificateur_user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "validation_workflows"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      validation_submit: {
+        Args: {
+          _approbateur: string
+          _verificateur: string
+          _workflow_id: string
+        }
+        Returns: {
+          approbateur_user_id: string | null
+          commentaire_obsolescence: string | null
+          commentaire_refus: string | null
+          created_at: string
+          created_by: string | null
+          date_approbation: string | null
+          date_obsolescence: string | null
+          date_soumission: string | null
+          date_verification: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          redacteur_user_id: string | null
+          statut: string
+          updated_at: string
+          verificateur_user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "validation_workflows"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      validation_verify: {
+        Args: { _commentaire?: string; _workflow_id: string }
+        Returns: {
+          approbateur_user_id: string | null
+          commentaire_obsolescence: string | null
+          commentaire_refus: string | null
+          created_at: string
+          created_by: string | null
+          date_approbation: string | null
+          date_obsolescence: string | null
+          date_soumission: string | null
+          date_verification: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          redacteur_user_id: string | null
+          statut: string
+          updated_at: string
+          verificateur_user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "validation_workflows"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {

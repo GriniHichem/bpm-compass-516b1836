@@ -48,6 +48,7 @@ const DashboardIndicateurs = lazy(() => import("./pages/DashboardIndicateurs"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const AdminNotificationsConfig = lazy(() => import("./pages/AdminNotificationsConfig"));
 const AdminDocumentsConfig = lazy(() => import("./pages/AdminDocumentsConfig"));
+const ValidationsDashboard = lazy(() => import("./pages/ValidationsDashboard"));
 const AdminEmailLogs = lazy(() => import("./pages/AdminEmailLogs"));
 const Modules = lazy(() => import("./pages/Modules"));
 const ProcessFlowchartPage = lazy(() => import("./pages/ProcessFlowchartPage"));
@@ -122,6 +123,7 @@ const App = () => (
               <Route path="/actions/:projectId" element={<ProtectedPage><RoleGuard requiredModule="actions"><ProjectDetail /></RoleGuard></ProtectedPage>} />
               <Route path="/actions/:projectId/planning" element={<ProtectedRoute><Suspense fallback={<PageLoader />}><RoleGuard requiredModule="actions"><ProjectPlanningPage /></RoleGuard></Suspense></ProtectedRoute>} />
               <Route path="/journal" element={<ProtectedPage><RoleGuard requiredModule="journal"><Journal /></RoleGuard></ProtectedPage>} />
+              <Route path="/validations" element={<ProtectedPage><ValidationsDashboard /></ProtectedPage>} />
               {/* Administration */}
               <Route path="/utilisateurs" element={<ProtectedPage><RoleGuard requiredModule="utilisateurs"><Utilisateurs /></RoleGuard></ProtectedPage>} />
               <Route path="/groupes-acteurs" element={<ProtectedPage><RoleGuard requiredModule="groupes_acteurs"><GroupesActeurs /></RoleGuard></ProtectedPage>} />
