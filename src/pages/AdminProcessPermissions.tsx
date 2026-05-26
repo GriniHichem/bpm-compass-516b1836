@@ -176,6 +176,7 @@ export default function AdminProcessPermissions() {
         custom_role_id: type === "custom" ? id : null,
         process_id: processId,
         can_read: false, can_detail: false, can_comment: false, can_edit: false, can_version: false,
+        can_verify: false, can_approve: false,
         [level]: true,
       };
       setPerms((prev) => [...prev, newPerm]);
