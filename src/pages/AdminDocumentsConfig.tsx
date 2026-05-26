@@ -110,6 +110,13 @@ export default function AdminDocumentsConfig() {
     fetchAll();
   };
 
+  const updateRule = async (id: string, field: keyof CodeRule, value: any) => {
+    const { error } = await supabase.from("document_code_rules").update({ [field]: value } as any).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    fetchAll();
+  };
+
+
   if (loading) return <div className="py-12 text-center text-muted-foreground">Chargement...</div>;
 
   return (
