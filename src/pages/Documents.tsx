@@ -269,10 +269,15 @@ export default function Documents() {
   // Filtered docs
   const filteredDocs = useMemo(() => {
     return docs.filter(d => {
+      if (!showObsolete && d.statut_workflow === "obsolete") return false;
+      if (filterStatut !== "all" && d.statut_workflow !== filterStatut) return false;
       if (filterProcessId !== "all" && !d.process_ids.includes(filterProcessId)) return false;
       if (filterType !== "all" && d.type_document !== filterType) return false;
       if (filterTagId !== "all" && !d.tag_ids.includes(filterTagId)) return false;
-      if (filterSearch && !d.titre.toLowerCase().includes(filterSearch.toLowerCase())) return false;
+      if (filterSearch) {
+        const s = filterSearch.toLowerCase();
+        if (!d.titre.toLowerCase().includes(s) && !(d.code || "").toLowerCase().includes(s)) return false;
+      }
       if (filterDateFrom) {
         try { if (parseISO(d.created_at) < parseISO(filterDateFrom)) return false; } catch {}
       }
@@ -285,7 +290,7 @@ export default function Documents() {
       }
       return true;
     });
-  }, [docs, filterProcessId, filterType, filterSearch, filterDateFrom, filterDateTo, filterTagId]);
+  }, [docs, filterStatut, showObsolete, filterProcessId, filterType, filterSearch, filterDateFrom, filterDateTo, filterTagId]);
 
   const openFileViewer = async (doc: Doc) => {
     if (!doc.chemin_fichier) return;
