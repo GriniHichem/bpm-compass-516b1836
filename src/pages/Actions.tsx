@@ -13,7 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, FolderKanban, Zap, ChevronDown, ChevronRight, StickyNote, User, Trash2, Pencil, CalendarRange, Search, AlertTriangle, TrendingUp, Clock, LayoutGrid, List as ListIcon } from "lucide-react";
+import { Plus, FolderKanban, Zap, ChevronDown, ChevronRight, StickyNote, User, Trash2, Pencil, CalendarRange, Search, AlertTriangle, TrendingUp, Clock, LayoutGrid, List as ListIcon, ShieldCheck } from "lucide-react";
+import { ValidationPanel } from "@/components/validation/ValidationPanel";
 import { FilterDrawer } from "@/components/ui/filter-drawer";
 import { Fab } from "@/components/ui/fab";
 import { differenceInDays, parseISO } from "date-fns";
@@ -74,6 +75,7 @@ export default function Actions() {
   const [expandedAction, setExpandedAction] = useState<string | null>(null);
   const [notesMap, setNotesMap] = useState<Record<string, ActionNote[]>>({});
   const [newNote, setNewNote] = useState<Record<string, { contenu: string; avancement: string }>>({});
+  const [validationActionId, setValidationActionId] = useState<string | null>(null);
 
   const fetchProjects = async () => {
     const { data } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
@@ -527,7 +529,18 @@ export default function Actions() {
                               </div>
                             </div>
                           </div>
-                          <Badge className={statusColors[a.statut] ?? ""}>{statusLabels[a.statut] ?? a.statut}</Badge>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0"
+                              title="Validation R/V/A"
+                              onClick={(e) => { e.stopPropagation(); setValidationActionId(a.id); }}
+                            >
+                              <ShieldCheck className="h-4 w-4 text-primary" />
+                            </Button>
+                            <Badge className={statusColors[a.statut] ?? ""}>{statusLabels[a.statut] ?? a.statut}</Badge>
+                          </div>
                         </CardContent>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
@@ -583,6 +596,19 @@ export default function Actions() {
       </Tabs>
 
       <ProjectForm open={projectFormOpen} onOpenChange={setProjectFormOpen} onSaved={fetchProjects} />
+
+      <Dialog open={!!validationActionId} onOpenChange={(o) => !o && setValidationActionId(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Validation de l'action</DialogTitle></DialogHeader>
+          {validationActionId && (
+            <ValidationPanel
+              entityType="plan_action"
+              entityId={validationActionId}
+              onApproved={fetchLegacyActions}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Mobile FAB — Nouveau projet */}
       {canEdit && (
