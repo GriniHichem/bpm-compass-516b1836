@@ -161,6 +161,12 @@ export default function PolitiqueQualite() {
                       <Label className="text-xs text-muted-foreground">Objectifs stratégiques</Label>
                       <div className="prose prose-sm max-w-none mt-1 text-sm" dangerouslySetInnerHTML={{ __html: p.objectifs || "—" }} />
                     </div>
+                    <ValidationPanel
+                      entityType="politique_qualite"
+                      entityId={p.id}
+                      entityLabel={`Version ${p.version}`}
+                      onApproved={() => qc.invalidateQueries({ queryKey: ["quality_policy"] })}
+                    />
                   </CardContent>
                 </Card>
               ))}
