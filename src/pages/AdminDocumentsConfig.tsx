@@ -34,6 +34,7 @@ export default function AdminDocumentsConfig() {
   const [types, setTypes] = useState<DocType[]>([]);
   const [tags, setTags] = useState<DocTag[]>([]);
   const [perms, setPerms] = useState<DocActeurPerm[]>([]);
+  const [rules, setRules] = useState<CodeRule[]>([]);
   const [newTypeLabel, setNewTypeLabel] = useState("");
   const [newTypeCode, setNewTypeCode] = useState("");
   const [newTagLabel, setNewTagLabel] = useState("");
@@ -41,14 +42,16 @@ export default function AdminDocumentsConfig() {
   const [loading, setLoading] = useState(true);
 
   const fetchAll = async () => {
-    const [tRes, tagRes, pRes] = await Promise.all([
+    const [tRes, tagRes, pRes, rulesRes] = await Promise.all([
       supabase.from("document_types").select("*").order("label"),
       supabase.from("document_tags").select("*").order("label"),
       supabase.from("document_actor_permissions").select("*"),
+      supabase.from("document_code_rules").select("*").order("type_document"),
     ]);
     setTypes((tRes.data ?? []) as DocType[]);
     setTags((tagRes.data ?? []) as DocTag[]);
     setPerms((pRes.data ?? []) as DocActeurPerm[]);
+    setRules((rulesRes.data ?? []) as CodeRule[]);
     setLoading(false);
   };
 
