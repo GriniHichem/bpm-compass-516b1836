@@ -26,6 +26,7 @@ type DocTag = { id: string; label: string; color: string; };
 type Doc = {
   id: string;
   titre: string;
+  code: string | null;
   type_document: string;
   version: number;
   archive: boolean;
@@ -36,6 +37,9 @@ type Doc = {
   consulte_count: number;
   retired_at: string | null;
   tag_ids: string[];
+  statut_workflow: WorkflowStatut;
+  date_prochaine_revue: string | null;
+  date_approbation: string | null;
 };
 
 type AuditLog = {
