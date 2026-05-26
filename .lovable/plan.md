@@ -1,91 +1,124 @@
-# Plan — Maîtrise documentaire avancée (ISO 9001 §7.5)
+# Moteur de validation transversal (ISO 9001)
 
-Objectif : combler les 9 manques identifiés en transformant le module Documents en véritable système de maîtrise documentaire qualité.
-
----
-
-## Lot 1 — Cycle de vie documentaire
-
-### 1.1 Codification automatique
-- Nouvelle table `document_code_rules` : préfixe par type de document (MQ, PR, MO, EN, FT…) + compteur incrémental + option processus (`{PREFIX}-{PROC}-{SEQ}`).
-- UI Admin (`AdminDocumentsConfig`) : section « Codification » pour définir les règles par type.
-- À la création d'un document : génération auto du `code` selon la règle, modifiable par Admin/RMQ uniquement.
-
-### 1.2 Workflow revue / approbation
-- Ajout colonnes sur `documents` : `statut_workflow` (`brouillon` → `en_revue` → `en_approbation` → `approuve` → `obsolete`), `redacteur_user_id`, `verificateur_user_id`, `approbateur_user_id`, `date_approbation`.
-- Nouvelle table `document_workflow_history` (qui, quand, action, commentaire).
-- UI : panneau latéral « Cycle d'approbation » avec actions contextuelles (Soumettre / Vérifier / Approuver / Refuser).
-- Seuls les documents `approuve` sont visibles aux acteurs en lecture ; brouillons visibles uniquement au rédacteur + Admin/RMQ.
-
-### 1.3 Date de prochaine revue
-- Colonnes `date_prochaine_revue` (date) + `frequence_revue_mois` (int) sur `documents`.
-- Calcul auto à l'approbation : `date_approbation + frequence_revue_mois`.
-- Intégration dans `check-deadlines` (notif J-30, J-7, J-0) au rédacteur + approbateur.
-- Badge visuel dans la liste : « Revue due » / « En retard ».
-
-### 1.4 Statut obsolète (finition)
-- Action « Rendre obsolète » (Admin/RMQ/Approbateur) : passe `statut_workflow=obsolete`, conserve le fichier pour traçabilité.
-- Filtre par défaut masque les obsolètes ; toggle « Inclure obsolètes » dans la liste.
-- Watermark « OBSOLÈTE » visible dans le viewer PDF.
+Objectif : remplacer les workflows ad-hoc par **un seul moteur générique** consommé par processus, documents, politique qualité, objectifs qualité, plans d'action, revues, fournisseurs critiques, enquêtes satisfaction. On capitalise sur ce qui existe déjà dans le Lot 1 Documents.
 
 ---
 
-## Lot 2 — Diffusion & traçabilité
+## Principes directeurs
 
-### 2.1 Liste de diffusion nominative
-- Nouvelle table `document_diffusion` (document_id, acteur_id OU user_id, obligatoire bool).
-- UI : onglet « Diffusion » sur la fiche document → sélection acteurs/utilisateurs ciblés à la publication.
-- À l'approbation : notification automatique aux destinataires.
-
-### 2.2 Accusé de lecture
-- Nouvelle table `document_acknowledgements` (document_id, user_id, version, acknowledged_at, ip).
-- Bouton « J'ai lu et compris » dans le viewer (visible uniquement si l'utilisateur est dans la liste de diffusion ou en lecture).
-- Relances automatiques (J+7, J+14) aux utilisateurs n'ayant pas accusé réception.
-
-### 2.3 Historique de lecture
-- Nouvelle table `document_reads` (document_id, user_id, read_at, action: `view`/`download`).
-- Onglet « Historique » du module : remplace l'écran vide actuel, liste paginée avec filtres (date, utilisateur, document).
-- Vue par document : « Qui a lu / qui n'a pas lu » + taux de couverture sur la liste de diffusion.
+1. **Polymorphisme** : une entité validable est identifiée par `(entity_type, entity_id)`. Le moteur ne connaît pas le métier.
+2. **Configurable par type** : chaque `entity_type` déclare ses étapes (R/V/A), ses rôles autorisés, ses transitions permises, ses notifications.
+3. **Non destructif** : les modules existants gardent leurs statuts métier (`Planifié`, `Validé`, `Archivé`…). Le moteur ajoute une **couche de validation parallèle** qui peut déclencher des transitions métier au moment de l'approbation.
+4. **Rétrocompatible** : le Lot 1 Documents devient le 1er consommateur du moteur, sans casser l'existant.
 
 ---
 
-## Lot 3 — Pilotage & export
+## Lot 1 — Moteur central (socle technique)
 
-### 3.1 Matrice documents / processus
-- Nouvelle page `/documents/matrice` (ou onglet).
-- Tableau croisé : lignes = documents, colonnes = processus (depuis `document_processes`), cases = lien.
-- Filtres : type, statut, processus, propriétaire. Export CSV.
+### Tables
 
-### 3.2 Liste maîtresse documentaire
-- Bouton « Export liste maîtresse » (CSV + PDF A4 signé) sur la page Documents.
-- Colonnes : code, titre, type, version, statut, rédacteur, vérificateur, approbateur, date approbation, prochaine revue, processus liés, taux d'accusé de lecture.
-- PDF avec en-tête Groupe AMOUR + bloc signature RMQ (réutilise `exportStrategicPdf`).
+```text
+validation_entity_types          -- catalogue : 'document','processus','politique_qualite',
+                                 --             'objectif_qualite','plan_action','revue',
+                                 --             'fournisseur','enquete_satisfaction'
+  - code (PK)
+  - label_fr
+  - requires_redacteur boolean
+  - requires_verificateur boolean
+  - requires_approbateur boolean
+  - allowed_approver_roles text[]   -- ex: ['admin','rmq','direction']
+  - auto_action_on_approve text     -- hook métier (ex: 'document.publish')
 
-### 3.3 Tableau de bord documentaire
-- KPIs en haut du module : nb total, % approuvés, nb en revue due, nb obsolètes, taux d'accusé global.
+validation_workflows
+  - id, entity_type, entity_id
+  - statut ('brouillon','en_revue','en_approbation','approuve','refuse','obsolete')
+  - redacteur_user_id, verificateur_user_id, approbateur_user_id
+  - date_soumission, date_verification, date_approbation
+  - commentaire_refus
+  - UNIQUE(entity_type, entity_id)
+
+validation_history
+  - id, workflow_id, from_statut, to_statut
+  - actor_user_id, commentaire, created_at
+```
+
+RLS : lecture autorisée à tout authentifié sur entités auxquelles il a déjà accès (delegated via `has_role` + ownership). Écriture restreinte aux acteurs assignés + Admin/RMQ.
+
+### Composant React unique
+
+`<ValidationPanel entityType="..." entityId="..." onApproved={cb} />`
+- Affiche statut + acteurs + historique + actions contextuelles (Soumettre / Vérifier / Approuver / Refuser / Rendre obsolète).
+- Réutilise le visuel du `DocumentWorkflowDialog` actuel.
+
+### Hooks
+
+`useValidationWorkflow(entityType, entityId)` — fetch, mutations, realtime.
+
+### Trigger générique `on_validation_approve`
+
+Dispatche selon `auto_action_on_approve` :
+- `document.publish` → set `documents.statut_workflow = 'approuve'` (compat Lot 1)
+- `processus.validate` → incrémente version + statut `Validated`
+- `politique.publish` → archive ancienne version + active nouvelle
+- etc.
+
+---
+
+## Lot 2 — Migration progressive des modules
+
+Pour chaque module, on ajoute un onglet/panneau "Validation" pointant vers le moteur et on configure le `entity_type` correspondant.
+
+| Module | Étapes requises | Approbateur par défaut | Action métier au "Approuvé" |
+|---|---|---|---|
+| **Documents** (déjà fait, à brancher) | R + V + A | Admin / RMQ | Publication + calcul prochaine revue |
+| **Processus** | R + A | RMQ | Passage `Draft → Validated`, incrémentation version |
+| **Politique qualité** | R + A | Direction | Archivage version N-1 + activation version N |
+| **Objectifs qualité** | R + A | Direction | Verrouillage cible/échéance, ouverture mesures |
+| **Plans d'action** (NC, audit, projet) | R + A | RMQ ou Pilote | Verrouillage du plan, démarrage suivi % |
+| **Revues** (processus & direction) | R + A | Pilote / Direction | Verrouillage PV, génération PDF signé |
+| **Fournisseurs critiques** | R + V + A | Achats + RMQ | Classement officiel (A/B/C) figé |
+| **Enquêtes satisfaction** | R + A | RMQ | Autorisation de diffusion (publication template) |
+
+Chaque migration = ~1 fichier de config + 1 ligne `<ValidationPanel>` injectée dans la page existante. **Les statuts métier actuels restent** ; le moteur ajoute le verrouillage formel.
+
+---
+
+## Lot 3 — Pilotage & traçabilité globale
+
+### Page `/qualite/validations`
+- **Tableau de bord transversal** : "À valider par moi" (toutes entités confondues), "En attente de mon approbation", "Refusés à retravailler".
+- **Filtres** : type d'entité, statut, acteur, période.
+- **Statistiques ISO** : délai moyen R→A par type, taux de refus, top-approbateurs.
+- **Export CSV + PDF A4 signé** (réutilise `exportStrategicPdf`).
+
+### Notifications unifiées
+Branche le moteur sur le système existant (`check-deadlines`) :
+- Push + Email à chaque transition (soumission → vérificateur, vérification → approbateur, approbation → rédacteur).
+- Relance auto J+3, J+7 si en attente.
+
+### Audit log
+Chaque transition pousse dans `activity_logs` existant via trigger.
 
 ---
 
 ## Aspects techniques
 
-- **Migrations** : idempotentes (`IF NOT EXISTS`, `DO $$ ... $$`), `GRANT` sur `authenticated` + `service_role` pour chaque nouvelle table, RLS activé.
-- **RLS** :
-  - `document_workflow_history`, `document_reads`, `document_acknowledgements` : lecture par concernés + Admin/RMQ/Approbateur.
-  - `document_diffusion` : géré par Admin/RMQ + propriétaire du document.
-- **Triggers** :
-  - `set_document_code` BEFORE INSERT (codification auto).
-  - `set_next_review_date` BEFORE UPDATE quand `statut_workflow` passe à `approuve`.
-  - `notify_diffusion_on_approval` AFTER UPDATE → insère notifications + emails.
-- **Edge function** `check-deadlines` : ajouter scan `date_prochaine_revue` + relances accusés de lecture non signés.
-- **Permissions** : nouveau granular `gestion_documentaire.can_approve` distinct de `can_edit` ; rôles Admin/RMQ par défaut.
+- **Migrations idempotentes** (`IF NOT EXISTS`, blocs `DO $$ EXCEPTION`).
+- **GRANTs explicites** sur `public.*` (authenticated + service_role ; pas d'anon).
+- **Permission granulaire ajoutée** : `validation.can_approve` par type d'entité (héritée de la matrice RBAC existante).
+- **Compat Lot 1 Documents** : les colonnes `statut_workflow`, `redacteur_user_id`, etc. de `documents` sont conservées et **synchronisées** via trigger avec `validation_workflows` (double écriture le temps de la transition, puis lecture exclusive du moteur).
+- **Pas d'edge function nouvelle** : tout en triggers DB + composant React.
 
 ---
 
-## Livraison suggérée
+## Recommandation
 
-Chaque lot = 1 message d'implémentation distinct pour validation incrémentale :
-1. **Lot 1** d'abord (base ISO critique : workflow + obsolète + revue périodique + codification).
-2. **Lot 2** ensuite (traçabilité utilisateur).
-3. **Lot 3** en finition (pilotage et exports).
+Démarrer par le **Lot 1** (moteur + branchement Documents en compat). Une fois validé sur les Documents (zéro régression), enchaîner Lot 2 module par module dans l'ordre de criticité ISO : Politique qualité → Objectifs → Processus → Revues → Plans d'action → Fournisseurs → Enquêtes. Lot 3 en finition.
 
-Confirme par quel lot tu veux que je commence (recommandé : **Lot 1**).
+**Bénéfices** :
+- 1 seul code à maintenir au lieu de 8.
+- Conformité ISO 9001 §5.2 / 6.2 / 7.5.2 / 8.4 / 9.3 complète.
+- Vue globale "À valider" inexistante aujourd'hui.
+- Base saine pour signature électronique future.
+
+Confirme si je lance le Lot 1.
