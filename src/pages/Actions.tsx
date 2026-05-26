@@ -529,7 +529,18 @@ export default function Actions() {
                               </div>
                             </div>
                           </div>
-                          <Badge className={statusColors[a.statut] ?? ""}>{statusLabels[a.statut] ?? a.statut}</Badge>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 shrink-0"
+                              title="Validation R/V/A"
+                              onClick={(e) => { e.stopPropagation(); setValidationActionId(a.id); }}
+                            >
+                              <ShieldCheck className="h-4 w-4 text-primary" />
+                            </Button>
+                            <Badge className={statusColors[a.statut] ?? ""}>{statusLabels[a.statut] ?? a.statut}</Badge>
+                          </div>
                         </CardContent>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
@@ -585,6 +596,19 @@ export default function Actions() {
       </Tabs>
 
       <ProjectForm open={projectFormOpen} onOpenChange={setProjectFormOpen} onSaved={fetchProjects} />
+
+      <Dialog open={!!validationActionId} onOpenChange={(o) => !o && setValidationActionId(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Validation de l'action</DialogTitle></DialogHeader>
+          {validationActionId && (
+            <ValidationPanel
+              entityType="plan_action"
+              entityId={validationActionId}
+              onApproved={fetchLegacyActions}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Mobile FAB — Nouveau projet */}
       {canEdit && (

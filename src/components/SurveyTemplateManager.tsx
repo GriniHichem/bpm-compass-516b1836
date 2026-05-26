@@ -6,10 +6,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Edit, Copy, Archive, Star, Eye } from "lucide-react";
+import { Plus, Edit, Copy, Archive, Star, Eye, ShieldCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import SurveyTemplateEditor from "./SurveyTemplateEditor";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ValidationPanel } from "@/components/validation/ValidationPanel";
 
 const statusConfig: Record<string, { label: string; color: string }> = {
   actif: { label: "Actif", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400" },
@@ -32,6 +34,7 @@ export default function SurveyTemplateManager() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [viewOnly, setViewOnly] = useState(false);
+  const [validationId, setValidationId] = useState<string | null>(null);
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["survey_templates"],
@@ -184,6 +187,7 @@ export default function SurveyTemplateManager() {
                   <TableCell>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openView(tpl)} title="Voir"><Eye className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setValidationId(tpl.id)} title="Validation R/V/A"><ShieldCheck className="h-4 w-4 text-primary" /></Button>
                       {canEdit && (
                         <>
                           <Button variant="ghost" size="icon" onClick={() => openEdit(tpl)} title="Modifier"><Edit className="h-4 w-4" /></Button>
@@ -206,6 +210,19 @@ export default function SurveyTemplateManager() {
         template={editingTemplate}
         viewOnly={viewOnly}
       />
+
+      <Dialog open={!!validationId} onOpenChange={(o) => !o && setValidationId(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Validation du modèle d'enquête</DialogTitle></DialogHeader>
+          {validationId && (
+            <ValidationPanel
+              entityType="enquete_satisfaction"
+              entityId={validationId}
+              onApproved={() => qc.invalidateQueries({ queryKey: ["survey_templates"] })}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
