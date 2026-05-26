@@ -12,12 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, FileText, Target, X, Download } from "lucide-react";
+import { Plus, Edit, Trash2, FileText, Target, X, Download, ShieldCheck } from "lucide-react";
 import { exportPolitiqueQualitePdf, exportObjectifsQualitePdf } from "@/lib/exportStrategicPdf";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import RichTextEditor from "@/components/RichTextEditor";
 import { HelpTooltip } from "@/components/HelpTooltip";
+import { ValidationPanel } from "@/components/validation/ValidationPanel";
 
 const statutPolicyColors: Record<string, string> = {
   brouillon: "bg-muted text-muted-foreground",
@@ -44,6 +45,7 @@ export default function PolitiqueQualite() {
   const [objDialog, setObjDialog] = useState(false);
   const [editingObj, setEditingObj] = useState<any>(null);
   const [objForm, setObjForm] = useState({ reference: "", description: "", indicateur: "", cible: "", echeance: "", statut: "en_cours", commentaire: "" });
+  const [validationObjId, setValidationObjId] = useState<string | null>(null);
 
   const { data: policies = [] } = useQuery({
     queryKey: ["quality_policy"],
@@ -159,6 +161,12 @@ export default function PolitiqueQualite() {
                       <Label className="text-xs text-muted-foreground">Objectifs stratégiques</Label>
                       <div className="prose prose-sm max-w-none mt-1 text-sm" dangerouslySetInnerHTML={{ __html: p.objectifs || "—" }} />
                     </div>
+                    <ValidationPanel
+                      entityType="politique_qualite"
+                      entityId={p.id}
+                      entityLabel={`Version ${p.version}`}
+                      onApproved={() => qc.invalidateQueries({ queryKey: ["quality_policy"] })}
+                    />
                   </CardContent>
                 </Card>
               ))}
@@ -201,6 +209,7 @@ export default function PolitiqueQualite() {
                     {canEdit && (
                       <TableCell>
                         <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" title="Validation" onClick={() => setValidationObjId(o.id)}><ShieldCheck className="h-4 w-4" /></Button>
                           <Button variant="ghost" size="icon" onClick={() => openEditObj(o)}><Edit className="h-4 w-4" /></Button>
                           <Button variant="ghost" size="icon" onClick={() => deleteObjMut.mutate(o.id)}><Trash2 className="h-4 w-4" /></Button>
                         </div>
@@ -300,6 +309,20 @@ export default function PolitiqueQualite() {
             <Button variant="outline" onClick={() => setObjDialog(false)}>Annuler</Button>
             <Button onClick={() => saveObjMut.mutate({ ...objForm, id: editingObj?.id })} disabled={saveObjMut.isPending}>Enregistrer</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Validation dialog par objectif */}
+      <Dialog open={!!validationObjId} onOpenChange={(o) => !o && setValidationObjId(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Validation de l'objectif qualité</DialogTitle></DialogHeader>
+          {validationObjId && (
+            <ValidationPanel
+              entityType="objectif_qualite"
+              entityId={validationObjId}
+              onApproved={() => qc.invalidateQueries({ queryKey: ["quality_objectives"] })}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

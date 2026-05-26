@@ -122,8 +122,10 @@ export type Database = {
       }
       actions: {
         Row: {
+          approbateur_user_id: string | null
           commentaire_cloture: string | null
           created_at: string
+          date_approbation: string | null
           date_cloture: string | null
           description: string
           echeance: string | null
@@ -138,8 +140,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          approbateur_user_id?: string | null
           commentaire_cloture?: string | null
           created_at?: string
+          date_approbation?: string | null
           date_cloture?: string | null
           description: string
           echeance?: string | null
@@ -154,8 +158,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          approbateur_user_id?: string | null
           commentaire_cloture?: string | null
           created_at?: string
+          date_approbation?: string | null
           date_cloture?: string | null
           description?: string
           echeance?: string | null
@@ -1753,8 +1759,10 @@ export type Database = {
       management_reviews: {
         Row: {
           actions_decidees: string
+          approbateur_user_id: string | null
           compte_rendu: string
           created_at: string
+          date_approbation: string | null
           date_revue: string
           decisions: string
           elements_entree: string
@@ -1769,8 +1777,10 @@ export type Database = {
         }
         Insert: {
           actions_decidees?: string
+          approbateur_user_id?: string | null
           compte_rendu?: string
           created_at?: string
+          date_approbation?: string | null
           date_revue?: string
           decisions?: string
           elements_entree?: string
@@ -1785,8 +1795,10 @@ export type Database = {
         }
         Update: {
           actions_decidees?: string
+          approbateur_user_id?: string | null
           compte_rendu?: string
           created_at?: string
+          date_approbation?: string | null
           date_revue?: string
           decisions?: string
           elements_entree?: string
@@ -3213,9 +3225,11 @@ export type Database = {
       }
       quality_objectives: {
         Row: {
+          approbateur_user_id: string | null
           cible: string
           commentaire: string
           created_at: string
+          date_approbation: string | null
           description: string
           echeance: string | null
           id: string
@@ -3228,9 +3242,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          approbateur_user_id?: string | null
           cible?: string
           commentaire?: string
           created_at?: string
+          date_approbation?: string | null
           description?: string
           echeance?: string | null
           id?: string
@@ -3243,9 +3259,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          approbateur_user_id?: string | null
           cible?: string
           commentaire?: string
           created_at?: string
+          date_approbation?: string | null
           description?: string
           echeance?: string | null
           id?: string
@@ -3740,10 +3758,12 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          approbateur_user_id: string | null
           commentaire: string
           contact: string
           created_at: string
           criteres_evaluation: string
+          date_approbation: string | null
           date_evaluation: string | null
           domaine: string
           email: string | null
@@ -3757,10 +3777,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          approbateur_user_id?: string | null
           commentaire?: string
           contact?: string
           created_at?: string
           criteres_evaluation?: string
+          date_approbation?: string | null
           date_evaluation?: string | null
           domaine?: string
           email?: string | null
@@ -3774,10 +3796,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          approbateur_user_id?: string | null
           commentaire?: string
           contact?: string
           created_at?: string
           criteres_evaluation?: string
+          date_approbation?: string | null
           date_evaluation?: string | null
           domaine?: string
           email?: string | null
@@ -3945,9 +3969,11 @@ export type Database = {
       }
       survey_templates: {
         Row: {
+          approbateur_user_id: string | null
           code: string
           created_at: string
           created_by: string | null
+          date_approbation: string | null
           description: string | null
           id: string
           is_default: boolean
@@ -3960,9 +3986,11 @@ export type Database = {
           version: number
         }
         Insert: {
+          approbateur_user_id?: string | null
           code: string
           created_at?: string
           created_by?: string | null
+          date_approbation?: string | null
           description?: string | null
           id?: string
           is_default?: boolean
@@ -3975,9 +4003,11 @@ export type Database = {
           version?: number
         }
         Update: {
+          approbateur_user_id?: string | null
           code?: string
           created_at?: string
           created_by?: string | null
+          date_approbation?: string | null
           description?: string | null
           id?: string
           is_default?: boolean

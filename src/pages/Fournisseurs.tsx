@@ -11,7 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, ShieldCheck } from "lucide-react";
+import { ValidationPanel } from "@/components/validation/ValidationPanel";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { HelpTooltip } from "@/components/HelpTooltip";
@@ -33,6 +34,7 @@ export default function Fournisseurs() {
   const [dialog, setDialog] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [form, setForm] = useState(emptyForm);
+  const [validationId, setValidationId] = useState<string | null>(null);
 
   const { data: suppliers = [] } = useQuery({
     queryKey: ["suppliers"],
@@ -104,6 +106,7 @@ export default function Fournisseurs() {
                 {canEdit && (
                   <TableCell>
                     <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" title="Validation" onClick={() => setValidationId(s.id)}><ShieldCheck className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Edit className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => deleteMut.mutate(s.id)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
@@ -162,6 +165,19 @@ export default function Fournisseurs() {
             <Button variant="outline" onClick={() => setDialog(false)}>Annuler</Button>
             <Button onClick={() => saveMut.mutate({ ...form, id: editing?.id })} disabled={saveMut.isPending}>Enregistrer</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!validationId} onOpenChange={(o) => !o && setValidationId(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader><DialogTitle>Validation du fournisseur critique</DialogTitle></DialogHeader>
+          {validationId && (
+            <ValidationPanel
+              entityType="fournisseur"
+              entityId={validationId}
+              onApproved={() => qc.invalidateQueries({ queryKey: ["suppliers"] })}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

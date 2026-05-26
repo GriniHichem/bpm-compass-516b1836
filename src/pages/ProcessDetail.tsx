@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ArrowLeft, Save, FileText, Download, Eye, FileDown, CopyPlus, Layers, ListChecks, Archive, Settings2, Users, Target, ArrowRightLeft, Package, Workflow } from "lucide-react";
+import { ArrowLeft, Save, FileText, Download, Eye, FileDown, CopyPlus, Layers, ListChecks, Archive, Settings2, Users, Target, ArrowRightLeft, Package, Workflow, ShieldCheck } from "lucide-react";
+import { ValidationPanel } from "@/components/validation/ValidationPanel";
 import { PdfViewerDialog } from "@/components/PdfViewerDialog";
 import { exportProcessPdf } from "@/lib/exportProcessPdf";
 import { cn } from "@/lib/utils";
@@ -319,6 +320,9 @@ export default function ProcessDetail() {
           <TabsTrigger value="tasks" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm rounded-lg text-sm px-4 py-2 transition-all">
             <ListChecks className="h-3.5 w-3.5" /> Activités
           </TabsTrigger>
+          <TabsTrigger value="validation" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm rounded-lg text-sm px-4 py-2 transition-all">
+            <ShieldCheck className="h-3.5 w-3.5" /> Validation
+          </TabsTrigger>
           {process.statut === "archive" && (
             <TabsTrigger value="archive" className="gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm rounded-lg text-sm px-4 py-2 transition-all">
               <Archive className="h-3.5 w-3.5" /> Objets liés
@@ -486,6 +490,17 @@ export default function ProcessDetail() {
               />
             </CardContent>
           </Card>
+        </TabsContent>
+        <TabsContent value="validation" className="mt-4 animate-fade-in">
+          <ValidationPanel
+            entityType="processus"
+            entityId={id!}
+            entityLabel={`${process.code} — v${process.version_courante}`}
+            onApproved={async () => {
+              const { data } = await supabase.from("processes").select("*").eq("id", id).single();
+              setProcess(data);
+            }}
+          />
         </TabsContent>
         {process.statut === "archive" && (
           <TabsContent value="archive" className="mt-4 animate-fade-in">
