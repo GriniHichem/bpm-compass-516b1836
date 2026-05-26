@@ -575,6 +575,19 @@ export default function Documents() {
                 {processes.map(p => <SelectItem key={p.id} value={p.id}>{p.nom}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={filterStatut} onValueChange={setFilterStatut}>
+              <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                {(Object.keys(WORKFLOW_LABELS) as WorkflowStatut[]).map(s => (
+                  <SelectItem key={s} value={s}>{WORKFLOW_LABELS[s]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+              <Checkbox checked={showObsolete} onCheckedChange={v => setShowObsolete(!!v)} />
+              <span>Inclure obsolètes</span>
+            </label>
             <div className="flex items-center gap-1">
               <Label className="text-xs whitespace-nowrap">Du</Label>
               <Input type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} className="w-[150px]" />
