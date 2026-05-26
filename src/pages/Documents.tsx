@@ -213,7 +213,9 @@ export default function Documents() {
       type_document: detectedType as any,
       process_id: newDoc.selectedProcessIds[0] || null,
       chemin_fichier: chemin, nom_fichier, taille_fichier,
-    }).select("id").single();
+      redacteur_user_id: user?.id ?? null,
+      statut_workflow: "brouillon",
+    } as any).select("id").single();
 
     if (error || !insertedDoc) {
       toast.error("Erreur création document : " + (error?.message.includes("row-level security") ? "Vous n'avez pas les droits pour créer des documents." : error?.message || "Erreur inconnue"));
