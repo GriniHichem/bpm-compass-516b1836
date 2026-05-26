@@ -50,6 +50,7 @@ const navItems: NavItem[] = [
 const FILTERS: { value: SearchEntityType; label: string; icon: any }[] = [
   { value: "all", label: "Tout", icon: Search },
   { value: "processus", label: "Processus", icon: Network },
+  { value: "projets", label: "Plans d'action", icon: FolderKanban },
   { value: "actions", label: "Actions", icon: Zap },
   { value: "audits", label: "Audits", icon: ClipboardCheck },
   { value: "nonconformites", label: "NC", icon: XCircle },
