@@ -106,6 +106,7 @@ export default function Fournisseurs() {
                 {canEdit && (
                   <TableCell>
                     <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" title="Validation" onClick={() => setValidationId(s.id)}><ShieldCheck className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(s)}><Edit className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => deleteMut.mutate(s.id)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
