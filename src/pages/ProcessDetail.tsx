@@ -491,6 +491,14 @@ export default function ProcessDetail() {
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="validation" className="mt-4 animate-fade-in">
+          <ValidationPanel
+            entityType="processus"
+            entityId={id!}
+            entityLabel={`${process.code} — v${process.version_courante}`}
+            onApproved={() => loadProcess()}
+          />
+        </TabsContent>
         {process.statut === "archive" && (
           <TabsContent value="archive" className="mt-4 animate-fade-in">
             <ProcessArchivedObjects processId={id!} />
