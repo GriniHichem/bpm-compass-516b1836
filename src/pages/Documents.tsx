@@ -10,13 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, FileText, Trash2, X, Eye, Download, ImageIcon, FolderOpen, Search, BarChart3, Clock, FileImage, File, Tag } from "lucide-react";
+import { Plus, FileText, Trash2, X, Eye, Download, ImageIcon, FolderOpen, Search, BarChart3, Clock, FileImage, File, Tag, ShieldCheck, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { HelpTooltip } from "@/components/HelpTooltip";
 import { PdfViewerDialog } from "@/components/PdfViewerDialog";
 import { ImageViewerDialog } from "@/components/ImageViewerDialog";
+import { DocumentWorkflowDialog, WORKFLOW_LABELS, WORKFLOW_COLORS, type WorkflowStatut } from "@/components/DocumentWorkflowDialog";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid } from "recharts";
-import { format, subMonths, startOfMonth, parseISO } from "date-fns";
+import { format, subMonths, startOfMonth, parseISO, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 
 type DocType = { id: string; label: string; code: string; actif: boolean; };
