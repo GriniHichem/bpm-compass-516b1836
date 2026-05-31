@@ -4298,6 +4298,15 @@ export type Database = {
         Args: { _task_id: string; _user_id: string }
         Returns: boolean
       }
+      process_access_allowed: {
+        Args: {
+          _global_fallback: boolean
+          _level: string
+          _process_id: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       project_access_level: {
         Args: { _project_id: string; _user_id: string }
         Returns: string
