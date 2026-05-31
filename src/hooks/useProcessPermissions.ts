@@ -57,35 +57,48 @@ export function useProcessPermissions() {
       // Admin/Super Admin bypass
       if (hasRole("admin") || hasRole("super_admin")) return true;
 
-      // Find matching permissions for this process and user's roles
-      const matching = permissions.filter(
-        (p) => p.process_id === processId && (
-          (p.role && roles.includes(p.role as any)) ||
-          (p.custom_role_id !== null) // Custom roles are checked separately
-        )
-      );
+      // Intersection logic per role:
+      // - If a role has any override at this level → whitelist mode for that role
+      //   → only grants this process if it's explicitly checked
+      // - If a role has no override → global applies for that role (signal undefined)
+      // OR across roles (most permissive wins between distinct roles)
+      let anyRoleInWhitelistMode = false;
+      for (const role of roles) {
+        const roleOverrides = permissions.filter((p) => p.role === role);
+        const hasAnyOverride = roleOverrides.some((p) => p[level]);
+        if (hasAnyOverride) {
+          anyRoleInWhitelistMode = true;
+          const granted = roleOverrides.some((p) => p.process_id === processId && p[level]);
+          if (granted) return true;
+          // else: this role excluded for this process, try other roles
+        } else {
+          // This role has no override at this level → defer to global
+          return undefined;
+        }
+      }
 
-      if (matching.length === 0) return undefined; // No override → use global
-
-      // Most permissive wins (OR logic)
-      return matching.some((p) => p[level]);
+      // All user's roles are in whitelist mode and none granted this process
+      if (anyRoleInWhitelistMode) return false;
+      return undefined;
     },
     [permissions, roles, hasRole]
   );
 
   /**
    * Check permission with fallback to global module permission.
-   * If no process-specific override exists, falls back to the global "processus" module permission.
+   * Intersection logic: an override list restricts the global right (whitelist).
    */
   const checkProcessPermission = useCallback(
     (processId: string, level: ProcessPermissionLevel, globalFallback: boolean): boolean => {
       if (hasRole("admin") || hasRole("super_admin")) return true;
-      const override = hasProcessPermission(processId, level);
-      if (override !== undefined) return override;
-      return globalFallback;
+      if (!globalFallback) return false;
+      const result = hasProcessPermission(processId, level);
+      if (result === undefined) return true; // no override → global grants
+      return result;
     },
     [hasProcessPermission, hasRole]
   );
+
 
   return {
     permissions,
