@@ -337,6 +337,12 @@ export default function AdminProcessPermissions() {
         </div>
       </div>
 
+      {/* Intersection rule banner */}
+      <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-xs text-amber-900 dark:text-amber-100">
+        <strong>Règle d'intersection :</strong> cocher un processus pour un rôle à un niveau donné active le mode <em>liste blanche</em> pour ce rôle. Le rôle perd alors l'accès à tous les processus <strong>non cochés</strong>, même si la matrice globale l'autorise. Sans aucune case cochée à un niveau, la matrice globale s'applique normalement. Les rôles Admin, Super Admin et RMQ ne sont jamais restreints.
+      </div>
+
+
       {/* Tools row */}
       <Card>
         <CardContent className="pt-4 pb-3">
