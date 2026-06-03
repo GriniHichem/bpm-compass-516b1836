@@ -26,6 +26,7 @@ export interface AppSettings {
   license_alert_days_before: string;
   license_alert_interval_days: string;
   license_grace_days: string;
+  license_unlimited: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -53,6 +54,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   license_alert_days_before: "90",
   license_alert_interval_days: "7",
   license_grace_days: "30",
+  license_unlimited: "false",
 };
 
 interface AppSettingsContextType {
@@ -96,6 +98,19 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchSettings();
+    // Realtime: tout changement de app_settings (ex: activation de licence par l'admin)
+    // est immédiatement répercuté sur toutes les sessions ouvertes.
+    const channel = supabase
+      .channel("app_settings_changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "app_settings" },
+        () => { fetchSettings(); }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchSettings]);
 
   const updateSetting = useCallback(async (key: keyof AppSettings, value: string) => {
