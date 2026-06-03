@@ -26,6 +26,7 @@ export interface AppSettings {
   license_alert_days_before: string;
   license_alert_interval_days: string;
   license_grace_days: string;
+  license_unlimited: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
