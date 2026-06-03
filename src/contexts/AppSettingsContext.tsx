@@ -98,6 +98,19 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchSettings();
+    // Realtime: tout changement de app_settings (ex: activation de licence par l'admin)
+    // est immédiatement répercuté sur toutes les sessions ouvertes.
+    const channel = supabase
+      .channel("app_settings_changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "app_settings" },
+        () => { fetchSettings(); }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchSettings]);
 
   const updateSetting = useCallback(async (key: keyof AppSettings, value: string) => {
