@@ -54,6 +54,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   license_alert_days_before: "90",
   license_alert_interval_days: "7",
   license_grace_days: "30",
+  license_unlimited: "false",
 };
 
 interface AppSettingsContextType {
