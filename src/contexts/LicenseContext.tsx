@@ -137,8 +137,19 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
         body: { code: normalized },
       });
       if (error) {
-        const msg = (data as any)?.error || error.message || "Échec d'activation";
-        throw new Error(msg);
+        // supabase-js renvoie un message générique "non-2xx" ; le vrai message est dans error.context (Response)
+        let serverMsg: string | null = null;
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx && typeof ctx.json === "function") {
+            const body = await ctx.json();
+            serverMsg = body?.error ?? null;
+          } else if (ctx && typeof ctx.text === "function") {
+            const txt = await ctx.text();
+            try { serverMsg = JSON.parse(txt)?.error ?? txt; } catch { serverMsg = txt; }
+          }
+        } catch { /* ignore */ }
+        throw new Error(serverMsg || (data as any)?.error || error.message || "Échec d'activation");
       }
       if ((data as any)?.error) {
         throw new Error((data as any).error);
