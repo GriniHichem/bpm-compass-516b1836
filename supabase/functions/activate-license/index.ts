@@ -15,16 +15,43 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return json({ error: "Authentification requise" }, 401);
+    }
+
     const { code } = await req.json();
     if (typeof code !== "string" || !/^[A-Za-z0-9]{32}$/.test(code)) {
       return json({ error: "Code de licence invalide (32 caractères alphanumériques requis)" }, 400);
     }
     const normalized = code.toUpperCase();
 
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: authData, error: authErr } = await userClient.auth.getUser();
+    if (authErr || !authData.user) {
+      return json({ error: "Session invalide ou expirée" }, 401);
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    const { data: roles, error: roleErr } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", authData.user.id);
+
+    if (roleErr) return json({ error: `Vérification des droits impossible: ${roleErr.message}` }, 500);
+    const isSuperAdmin = Array.isArray(roles) && roles.some((r) => r.role === "super_admin");
+    if (!isSuperAdmin) {
+      return json({ error: "Seul un super administrateur peut activer la licence" }, 403);
+    }
 
     const { data: lic, error: selErr } = await supabase
       .from("licenses")
@@ -64,10 +91,11 @@ Deno.serve(async (req) => {
       { key: "license_unlimited", value: expiresAt ? "false" : "true" },
     ];
     for (const s of settings) {
-      await supabase.from("app_settings").upsert(
-        { ...s, updated_at: now.toISOString() },
+      const { error: settingErr } = await supabase.from("app_settings").upsert(
+        { ...s, updated_at: now.toISOString(), updated_by: authData.user.id },
         { onConflict: "key" }
       );
+      if (settingErr) return json({ error: settingErr.message }, 500);
     }
 
     return json({

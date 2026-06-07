@@ -121,6 +121,7 @@ supabase functions deploy send-test-email --no-verify-jwt
 supabase functions deploy send-notification-email --no-verify-jwt
 supabase functions deploy send-survey-copy --no-verify-jwt
 supabase functions deploy check-deadlines --no-verify-jwt
+supabase functions deploy activate-license --no-verify-jwt
 ```
 Ou en bloc : `supabase functions deploy --no-verify-jwt`.
 
