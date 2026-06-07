@@ -96,7 +96,8 @@ Deno.serve(async (req) => {
 
       for (const s of settings) {
         const { error: settingErr } = await supabase.from("app_settings").upsert(
-          { ...s, updated_at: new Date().toISOString(), updated_by: authData.user.id },
+          { ...s, updated_at: new Date().toISOString(), updated_by: actingUserId },
+          { onConflict: "key" }
           { onConflict: "key" }
         );
         if (settingErr) throw settingErr;
