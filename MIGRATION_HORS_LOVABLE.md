@@ -133,6 +133,16 @@ Configurer (déjà standard sur Supabase) :
 
 > Le secret `LOVABLE_API_KEY` (passerelle IA Lovable) **n'est pas requis** pour le fonctionnement de Q-Process. Aucune fonctionnalité critique ne dépend exclusivement de l'IA Lovable. Si vous voulez les fonctions IA, configurez une clé OpenAI/Gemini dans `app_settings`.
 
+### Activation de licence après migration complète
+
+La fonction `activate-license` est prévue pour fonctionner aussi sur une base **migrée hors Lovable** :
+
+- si le code existe dans `public.licenses`, l'activation est **idempotente** ;
+- si la licence a déjà été marquée `used = true` sur l'ancienne instance, la fonction **reconstruit automatiquement** `app_settings` (`license_key`, `license_mode`, `license_activated_at`, `license_expires_at`, etc.) à partir du catalogue local ;
+- il n'est donc **plus nécessaire** de remettre manuellement `public.licenses.used = false` juste pour réactiver après migration d'un serveur vers un autre.
+
+En pratique, après import complet de la base, vous pouvez simplement redéployer `activate-license` puis relancer l'activation depuis l'interface d'administration.
+
 ---
 
 ## 6. Étape 5 — Déployer le frontend
