@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
 
     const { data: lic, error: selErr } = await supabase
       .from("licenses")
-      .select("code, duration_days, used")
+      .select("code, duration_days, used, used_at, used_by_install")
       .eq("code", normalized)
       .maybeSingle();
 
@@ -66,13 +66,43 @@ Deno.serve(async (req) => {
     const { data: settingsRows, error: settingsReadErr } = await supabase
       .from("app_settings")
       .select("key, value")
-      .in("key", ["license_key", "license_mode", "license_expires_at", "license_unlimited"]);
+      .in("key", ["license_key", "license_mode", "license_expires_at", "license_unlimited", "license_install_id"]);
 
     if (settingsReadErr) return json({ error: settingsReadErr.message }, 500);
 
     const currentSettings = Object.fromEntries((settingsRows ?? []).map((row) => [row.key, row.value]));
+    const currentInstallId = currentSettings.license_install_id || crypto.randomUUID();
     const isSameDatabaseLicense = currentSettings.license_key === normalized
       && ["active", "grace", "expired"].includes(currentSettings.license_mode ?? "");
+
+    const persistLicenseSettings = async (activatedAt: Date) => {
+      const expiresAt =
+        lic.duration_days === null
+          ? null
+          : new Date(activatedAt.getTime() + lic.duration_days * 86400000);
+
+      const settings = [
+        { key: "license_key", value: normalized },
+        { key: "license_mode", value: "active" },
+        { key: "license_activated_at", value: activatedAt.toISOString().split("T")[0] },
+        { key: "license_expires_at", value: expiresAt ? expiresAt.toISOString().split("T")[0] : "" },
+        { key: "license_unlimited", value: expiresAt ? "false" : "true" },
+        { key: "license_install_id", value: currentInstallId },
+      ];
+
+      for (const s of settings) {
+        const { error: settingErr } = await supabase.from("app_settings").upsert(
+          { ...s, updated_at: new Date().toISOString(), updated_by: authData.user.id },
+          { onConflict: "key" }
+        );
+        if (settingErr) throw settingErr;
+      }
+
+      return {
+        unlimited: expiresAt === null,
+        expires_at: expiresAt ? expiresAt.toISOString().split("T")[0] : null,
+      };
+    };
 
     if (lic.used) {
       if (isSameDatabaseLicense) {
@@ -83,48 +113,54 @@ Deno.serve(async (req) => {
           expires_at: currentSettings.license_expires_at || null,
         });
       }
-      return json({ error: "Ce code a déjà été utilisé" }, 409);
+
+      const restoredActivationDate = lic.used_at ? new Date(lic.used_at) : new Date();
+      const restored = await persistLicenseSettings(restoredActivationDate);
+
+      return json({
+        ok: true,
+        restored: true,
+        ...restored,
+      });
     }
 
     const now = new Date();
-    const expiresAt =
-      lic.duration_days === null
-        ? null
-        : new Date(now.getTime() + lic.duration_days * 86400000);
 
     // Mark as used (race-safe: only update if still unused)
-    const installId = crypto.randomUUID();
     const { data: updated, error: updErr } = await supabase
       .from("licenses")
-      .update({ used: true, used_at: now.toISOString(), used_by_install: installId })
+      .update({ used: true, used_at: now.toISOString(), used_by_install: currentInstallId })
       .eq("code", normalized)
       .eq("used", false)
-      .select("code")
+      .select("code, used_at")
       .maybeSingle();
 
     if (updErr) return json({ error: updErr.message }, 500);
-    if (!updated) return json({ error: "Ce code a déjà été utilisé" }, 409);
+    if (!updated) {
+      const { data: latestLicense, error: latestErr } = await supabase
+        .from("licenses")
+        .select("used_at")
+        .eq("code", normalized)
+        .maybeSingle();
 
-    // Update app_settings (server-authoritative)
-    const settings = [
-      { key: "license_key", value: normalized },
-      { key: "license_mode", value: "active" },
-      { key: "license_activated_at", value: now.toISOString().split("T")[0] },
-      { key: "license_expires_at", value: expiresAt ? expiresAt.toISOString().split("T")[0] : "" },
-      { key: "license_unlimited", value: expiresAt ? "false" : "true" },
-    ];
-    for (const s of settings) {
-      const { error: settingErr } = await supabase.from("app_settings").upsert(
-        { ...s, updated_at: now.toISOString(), updated_by: authData.user.id },
-        { onConflict: "key" }
+      if (latestErr) return json({ error: latestErr.message }, 500);
+
+      const recovered = await persistLicenseSettings(
+        latestLicense?.used_at ? new Date(latestLicense.used_at) : now
       );
-      if (settingErr) return json({ error: settingErr.message }, 500);
+
+      return json({
+        ok: true,
+        restored: true,
+        ...recovered,
+      });
     }
+
+    const activated = await persistLicenseSettings(updated.used_at ? new Date(updated.used_at) : now);
 
     return json({
       ok: true,
-      unlimited: expiresAt === null,
-      expires_at: expiresAt ? expiresAt.toISOString().split("T")[0] : null,
+      ...activated,
     });
   } catch (e: any) {
     return json({ error: e?.message ?? "Erreur inattendue" }, 500);
