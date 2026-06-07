@@ -15,43 +15,47 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return json({ error: "Authentification requise" }, 401);
-    }
-
     const { code } = await req.json();
     if (typeof code !== "string" || !/^[A-Za-z0-9]{32}$/.test(code)) {
       return json({ error: "Code de licence invalide (32 caractères alphanumériques requis)" }, 400);
     }
     const normalized = code.toUpperCase();
 
-    const userClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: authData, error: authErr } = await userClient.auth.getUser();
-    if (authErr || !authData.user) {
-      return json({ error: "Session invalide ou expirée" }, 401);
-    }
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: roles, error: roleErr } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", authData.user.id);
+    // Validation JWT OPTIONNELLE (compatible self-hosting sans session).
+    // Si un Authorization Bearer est fourni, on vérifie le rôle admin/super_admin.
+    // Sinon, on autorise l'activation : le code 32 caractères fait office de secret.
+    const authHeader = req.headers.get("Authorization");
+    let actingUserId: string | null = null;
 
-    if (roleErr) return json({ error: `Vérification des droits impossible: ${roleErr.message}` }, 500);
-    const canActivateLicense = Array.isArray(roles)
-      && roles.some((r) => r.role === "super_admin" || r.role === "admin");
-    if (!canActivateLicense) {
-      return json({ error: "Seul un administrateur peut activer la licence" }, 403);
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const userClient = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+          { global: { headers: { Authorization: authHeader } } }
+        );
+        const { data: authData } = await userClient.auth.getUser();
+        if (authData?.user) {
+          actingUserId = authData.user.id;
+          const { data: roles } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", actingUserId);
+          const isAdmin = Array.isArray(roles)
+            && roles.some((r) => r.role === "super_admin" || r.role === "admin");
+          if (!isAdmin) {
+            return json({ error: "Seul un administrateur peut activer la licence" }, 403);
+          }
+        }
+        // Si getUser() échoue (token expiré en self-host), on tombe en mode anonyme : on continue.
+      } catch (_) {
+        // Idem : on ignore et on continue sans utilisateur.
+      }
     }
 
     const { data: lic, error: selErr } = await supabase
@@ -92,7 +96,7 @@ Deno.serve(async (req) => {
 
       for (const s of settings) {
         const { error: settingErr } = await supabase.from("app_settings").upsert(
-          { ...s, updated_at: new Date().toISOString(), updated_by: authData.user.id },
+          { ...s, updated_at: new Date().toISOString(), updated_by: actingUserId },
           { onConflict: "key" }
         );
         if (settingErr) throw settingErr;
