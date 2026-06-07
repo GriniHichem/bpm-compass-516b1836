@@ -61,7 +61,29 @@ Deno.serve(async (req) => {
 
     if (selErr) return json({ error: selErr.message }, 500);
     if (!lic) return json({ error: "Code de licence inconnu" }, 404);
-    if (lic.used) return json({ error: "Ce code a déjà été utilisé" }, 409);
+
+    const { data: settingsRows, error: settingsReadErr } = await supabase
+      .from("app_settings")
+      .select("key, value")
+      .in("key", ["license_key", "license_mode", "license_expires_at", "license_unlimited"]);
+
+    if (settingsReadErr) return json({ error: settingsReadErr.message }, 500);
+
+    const currentSettings = Object.fromEntries((settingsRows ?? []).map((row) => [row.key, row.value]));
+    const isSameDatabaseLicense = currentSettings.license_key === normalized
+      && ["active", "grace", "expired"].includes(currentSettings.license_mode ?? "");
+
+    if (lic.used) {
+      if (isSameDatabaseLicense) {
+        return json({
+          ok: true,
+          already_active: true,
+          unlimited: currentSettings.license_unlimited === "true",
+          expires_at: currentSettings.license_expires_at || null,
+        });
+      }
+      return json({ error: "Ce code a déjà été utilisé" }, 409);
+    }
 
     const now = new Date();
     const expiresAt =
