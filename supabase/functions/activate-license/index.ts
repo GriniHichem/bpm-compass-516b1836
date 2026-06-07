@@ -48,9 +48,10 @@ Deno.serve(async (req) => {
       .eq("user_id", authData.user.id);
 
     if (roleErr) return json({ error: `Vérification des droits impossible: ${roleErr.message}` }, 500);
-    const isSuperAdmin = Array.isArray(roles) && roles.some((r) => r.role === "super_admin");
-    if (!isSuperAdmin) {
-      return json({ error: "Seul un super administrateur peut activer la licence" }, 403);
+    const canActivateLicense = Array.isArray(roles)
+      && roles.some((r) => r.role === "super_admin" || r.role === "admin");
+    if (!canActivateLicense) {
+      return json({ error: "Seul un administrateur peut activer la licence" }, 403);
     }
 
     const { data: lic, error: selErr } = await supabase

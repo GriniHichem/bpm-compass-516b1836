@@ -133,31 +133,43 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
       if (!/^[A-Za-z0-9]{32}$/.test(normalized)) {
         throw new Error("Le code doit contenir exactement 32 caractères alphanumériques");
       }
-      const { data, error } = await supabase.functions.invoke("activate-license", {
-        body: { code: normalized },
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (sessionError || !accessToken) {
+        throw new Error("Session expirée. Veuillez vous reconnecter avant d'activer la licence.");
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/activate-license`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "X-Client-Info": "q-process",
+        },
+        body: JSON.stringify({ code: normalized }),
       });
-      if (error) {
-        // supabase-js renvoie un message générique "non-2xx" ; le vrai message est dans error.context (Response)
-        let serverMsg: string | null = null;
+
+      const rawBody = await response.text();
+      let data: any = null;
+
+      if (rawBody) {
         try {
-          const ctx: any = (error as any).context;
-          if (ctx && typeof ctx.json === "function") {
-            const body = await ctx.json();
-            serverMsg = body?.error ?? null;
-          } else if (ctx && typeof ctx.text === "function") {
-            const txt = await ctx.text();
-            try { serverMsg = JSON.parse(txt)?.error ?? txt; } catch { serverMsg = txt; }
-          }
-        } catch { /* ignore */ }
-        throw new Error(serverMsg || (data as any)?.error || error.message || "Échec d'activation");
+          data = JSON.parse(rawBody);
+        } catch {
+          data = { error: rawBody };
+        }
       }
-      if ((data as any)?.error) {
-        throw new Error((data as any).error);
+
+      if (!response.ok) {
+        throw new Error(data?.error || `Échec d'activation (${response.status})`);
       }
+
       await refreshSettings();
       return {
-        unlimited: !!(data as any)?.unlimited,
-        expires_at: ((data as any)?.expires_at as string | null) ?? null,
+        unlimited: !!data?.unlimited,
+        expires_at: (data?.expires_at as string | null) ?? null,
       };
     },
     [refreshSettings]
