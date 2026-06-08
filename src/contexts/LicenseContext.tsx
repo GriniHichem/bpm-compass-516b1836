@@ -133,21 +133,28 @@ export function LicenseProvider({ children }: { children: ReactNode }) {
       if (!/^[A-Za-z0-9]{32}$/.test(normalized)) {
         throw new Error("Le code doit contenir exactement 32 caractères alphanumériques");
       }
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
+      // JWT OPTIONNEL (compatible self-hosting) : on tente de récupérer une session,
+      // mais on n'échoue PAS s'il n'y en a pas — la fonction edge accepte les deux modes.
+      let accessToken: string | undefined;
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        accessToken = sessionData.session?.access_token;
+      } catch {
+        accessToken = undefined;
+      }
 
-      if (sessionError || !accessToken) {
-        throw new Error("Session expirée. Veuillez vous reconnecter avant d'activer la licence.");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        "X-Client-Info": "q-process",
+      };
+      if (accessToken) {
+        headers.Authorization = `Bearer ${accessToken}`;
       }
 
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/activate-license`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          "X-Client-Info": "q-process",
-        },
+        headers,
         body: JSON.stringify({ code: normalized }),
       });
 
