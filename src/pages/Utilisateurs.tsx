@@ -50,6 +50,8 @@ export default function Utilisateurs() {
   const [resetting, setResetting] = useState(false);
 
   const [editUser, setEditUser] = useState<UserWithRoles | null>(null);
+  const [deleteUser, setDeleteUser] = useState<UserWithRoles | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [editFields, setEditFields] = useState({ nom: "", prenom: "", email: "", fonction: "" });
   const [editSaving, setEditSaving] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
