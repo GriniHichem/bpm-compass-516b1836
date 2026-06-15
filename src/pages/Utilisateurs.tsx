@@ -363,6 +363,11 @@ export default function Utilisateurs() {
                       <Button variant="ghost" size="icon" className="h-8 w-8" title="Réinitialiser mot de passe" onClick={() => setResetUserId(u.id)}>
                         <KeyRound className="h-4 w-4" />
                       </Button>
+                      {canDeleteUsers && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Supprimer l'utilisateur" onClick={() => setDeleteUser(u)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Badge className="cursor-pointer" variant={u.actif ? "default" : "destructive"} onClick={() => toggleActive(u.id, u.actif)}>
                         {u.actif ? "Actif" : "Inactif"}
                       </Badge>
