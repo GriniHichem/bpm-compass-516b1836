@@ -97,6 +97,38 @@ export default function Utilisateurs() {
   useEffect(() => { fetchUsers(); fetchActeurs(); }, []);
 
   const canEdit = hasPermission("utilisateurs", "can_edit");
+  const canDeleteUsers = hasRole("admin") || hasRole("super_admin");
+
+  const handleDeleteUser = async () => {
+    if (!deleteUser) return;
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+        body: { user_id: deleteUser.id },
+      });
+      if (error) {
+        let msg = error.message || "Erreur";
+        try {
+          const parsed = JSON.parse((error as any).context?.body || '{}');
+          if (parsed.error) msg = parsed.error;
+        } catch { /* ignore */ }
+        toast.error(msg, { duration: 8000 });
+        setDeleting(false);
+        return;
+      }
+      if (data?.error) {
+        toast.error(data.error, { duration: 8000 });
+        setDeleting(false);
+        return;
+      }
+      toast.success("Utilisateur supprimé");
+      setDeleteUser(null);
+      fetchUsers();
+    } catch (e: any) {
+      toast.error(e.message || "Erreur");
+    }
+    setDeleting(false);
+  };
   const canDelete = hasPermission("utilisateurs", "can_delete");
 
   const handleToggleRole = async (userId: string, roleKey: string, currentRoles: string[]) => {
