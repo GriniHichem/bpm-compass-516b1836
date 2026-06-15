@@ -5,12 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { Users, Plus, KeyRound, Pencil, Camera } from "lucide-react";
+import { Users, Plus, KeyRound, Pencil, Camera, Trash2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type ActeurRef = { id: string; fonction: string | null };
@@ -49,6 +50,8 @@ export default function Utilisateurs() {
   const [resetting, setResetting] = useState(false);
 
   const [editUser, setEditUser] = useState<UserWithRoles | null>(null);
+  const [deleteUser, setDeleteUser] = useState<UserWithRoles | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [editFields, setEditFields] = useState({ nom: "", prenom: "", email: "", fonction: "" });
   const [editSaving, setEditSaving] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -94,6 +97,38 @@ export default function Utilisateurs() {
   useEffect(() => { fetchUsers(); fetchActeurs(); }, []);
 
   const canEdit = hasPermission("utilisateurs", "can_edit");
+  const canDeleteUsers = hasRole("admin") || hasRole("super_admin");
+
+  const handleDeleteUser = async () => {
+    if (!deleteUser) return;
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+        body: { user_id: deleteUser.id },
+      });
+      if (error) {
+        let msg = error.message || "Erreur";
+        try {
+          const parsed = JSON.parse((error as any).context?.body || '{}');
+          if (parsed.error) msg = parsed.error;
+        } catch { /* ignore */ }
+        toast.error(msg, { duration: 8000 });
+        setDeleting(false);
+        return;
+      }
+      if (data?.error) {
+        toast.error(data.error, { duration: 8000 });
+        setDeleting(false);
+        return;
+      }
+      toast.success("Utilisateur supprimé");
+      setDeleteUser(null);
+      fetchUsers();
+    } catch (e: any) {
+      toast.error(e.message || "Erreur");
+    }
+    setDeleting(false);
+  };
   const canDelete = hasPermission("utilisateurs", "can_delete");
 
   const handleToggleRole = async (userId: string, roleKey: string, currentRoles: string[]) => {
@@ -328,6 +363,11 @@ export default function Utilisateurs() {
                       <Button variant="ghost" size="icon" className="h-8 w-8" title="Réinitialiser mot de passe" onClick={() => setResetUserId(u.id)}>
                         <KeyRound className="h-4 w-4" />
                       </Button>
+                      {canDeleteUsers && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" title="Supprimer l'utilisateur" onClick={() => setDeleteUser(u)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Badge className="cursor-pointer" variant={u.actif ? "default" : "destructive"} onClick={() => toggleActive(u.id, u.actif)}>
                         {u.actif ? "Actif" : "Inactif"}
                       </Badge>
@@ -421,6 +461,28 @@ export default function Utilisateurs() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete user confirmation */}
+      <AlertDialog open={!!deleteUser} onOpenChange={(o) => { if (!o) setDeleteUser(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l'utilisateur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Le compte de <strong>{deleteUser?.prenom} {deleteUser?.nom}</strong> ({deleteUser?.email}) sera définitivement supprimé. Les données liées (responsabilités, historiques) seront conservées mais détachées.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDeleteUser(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Suppression..." : "Supprimer définitivement"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
