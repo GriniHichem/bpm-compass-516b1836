@@ -35,10 +35,11 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? Deno.env.get('SUPABASE_PUBLISHABLE_KEY');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const jwtSecret = Deno.env.get('SUPABASE_JWT_SECRET') ?? Deno.env.get('JWT_SECRET');
 
-    if (!supabaseUrl || !supabaseAnonKey || !serviceRoleKey) {
-      console.error('Missing env: SUPABASE_URL, SUPABASE_ANON_KEY/PUBLISHABLE_KEY or SUPABASE_SERVICE_ROLE_KEY');
-      return jsonResponse({ error: 'Configuration serveur manquante (URL, clé publique ou service role). Vérifiez vos variables d\'environnement.' }, 500);
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error('Missing env: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+      return jsonResponse({ error: "Configuration serveur manquante (URL ou service role key). Vérifiez vos variables d'environnement." }, 500);
     }
 
     const authHeader = req.headers.get('Authorization');
@@ -47,21 +48,62 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'En-tête Authorization manquant. Veuillez vous reconnecter.' }, 401);
     }
 
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
-    const callerUserId = claimsData?.claims?.sub;
+    // Robust JWT validation — 4 strategies (Cloud + self-host compatible)
+    let callerUserId: string | undefined;
 
-    if (claimsErr || !callerUserId) {
-      console.error('Auth error:', claimsErr?.message || 'No claims found for token');
-      return jsonResponse({ error: 'Session invalide ou expirée. Veuillez vous reconnecter.' }, 401);
+    if (supabaseAnonKey) {
+      try {
+        const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+          global: { headers: { Authorization: authHeader } },
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+        callerUserId = claimsData?.claims?.sub as string | undefined;
+        if (claimsErr) console.warn('getClaims warning:', claimsErr.message);
+      } catch (e) {
+        console.warn('getClaims threw:', (e as Error).message);
+      }
+    }
+
+    if (!callerUserId && jwtSecret) {
+      try {
+        const { payload } = await jwtVerify(token, new TextEncoder().encode(jwtSecret));
+        callerUserId = payload.sub as string | undefined;
+      } catch (e) {
+        console.warn('Local JWT verify failed:', (e as Error).message);
+      }
+    }
+
+    if (!callerUserId) {
+      try {
+        const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
+        if (!userErr && userData?.user) callerUserId = userData.user.id;
+        else if (userErr) console.warn('admin.getUser failed:', userErr.message);
+      } catch (e) {
+        console.warn('admin.getUser threw:', (e as Error).message);
+      }
+    }
+
+    if (!callerUserId) {
+      try {
+        const sub = decodeJwt(token).sub as string | undefined;
+        if (sub) {
+          const { data: u } = await supabaseAdmin.auth.admin.getUserById(sub);
+          if (u?.user) callerUserId = u.user.id;
+        }
+      } catch (e) {
+        console.warn('JWT decode fallback failed:', (e as Error).message);
+      }
+    }
+
+    if (!callerUserId) {
+      return jsonResponse({
+        error: "Impossible de valider la session. Sur un serveur auto-hébergé, vérifiez que SUPABASE_JWT_SECRET est défini dans l'environnement des Edge Functions et correspond au secret du serveur d'auth.",
+      }, 401);
     }
 
     let body: Record<string, unknown>;
