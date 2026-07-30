@@ -27,34 +27,26 @@ export default function ResetPassword() {
       return;
     }
     setLoading(true);
-    let error: Error | null = null;
+    try {
+      const { error: directError } = await supabase.auth.updateUser({ password });
 
-    const { error: directError } = await supabase.auth.updateUser({ password });
-
-    if (directError) {
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-
-      if (userError || !userData.user) {
-        error = userError ?? directError;
-      } else {
-        const { error: fallbackError } = await supabase.functions.invoke("admin-reset-password", {
-          body: {
-            user_id: userData.user.id,
-            new_password: password,
-          },
+      if (directError) {
+        const { data: userData } = await supabase.auth.getUser();
+        await callResetPasswordFunction({
+          user_id: userData?.user?.id,
+          new_password: password,
         });
-        error = fallbackError;
       }
-    }
 
-    if (error) {
-      toast.error("Erreur : " + error.message);
-    } else {
       toast.success("Mot de passe mis à jour avec succès.");
       navigate("/");
+    } catch (err: any) {
+      toast.error("Erreur : " + (err?.message ?? "inconnue"));
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
+
 
   if (!ready) {
     return (
