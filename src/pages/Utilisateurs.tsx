@@ -250,27 +250,8 @@ export default function Utilisateurs() {
     if (!resetUserId || !resetPassword) { toast.error("Mot de passe requis"); return; }
     setResetting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("admin-reset-password", {
-        body: { user_id: resetUserId, new_password: resetPassword },
-      });
-      if (error) {
-        let msg = error.message || "Erreur";
-        try {
-          const parsed = JSON.parse((error as any).context?.body || '{}');
-          if (parsed.error) msg = parsed.error;
-        } catch {
-          const match = msg.match(/\{.*"error"\s*:\s*"([^"]+)"/);
-          if (match) msg = match[1];
-        }
-        toast.error(msg, { duration: 8000 });
-        setResetting(false);
-        return;
-      }
-      if (data?.error) {
-        toast.error(data.error + (data.detail ? ` (${data.detail})` : ''), { duration: 8000 });
-        setResetting(false);
-        return;
-      }
+      await callResetPasswordFunction({ user_id: resetUserId, new_password: resetPassword });
+
       toast.success("Mot de passe réinitialisé");
       setResetUserId(null);
       setResetPassword("");
