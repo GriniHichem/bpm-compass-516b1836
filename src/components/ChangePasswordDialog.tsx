@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { callResetPasswordFunction } from "@/lib/resetPassword";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,27 +32,18 @@ export function ChangePasswordDialog({ open, onOpenChange }: Props) {
     }
     setSaving(true);
     try {
-      let updateError: Error | null = null;
-
       const { error: directError } = await supabase.auth.updateUser({ password: newPassword });
 
       if (directError) {
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (userError || !userData.user) {
-          throw userError ?? new Error("Session invalide ou expirée");
-        }
-
-        const { error: fallbackError } = await supabase.functions.invoke("admin-reset-password", {
-          body: {
-            user_id: userData.user.id,
-            new_password: newPassword,
-          },
+        // Auto-hébergement : l'appel direct GoTrue peut être bloqué (CORS / Kong / JWT).
+        // On bascule sur l'edge function, qui valide le JWT en interne.
+        const { data: userData } = await supabase.auth.getUser();
+        await callResetPasswordFunction({
+          user_id: userData?.user?.id,
+          new_password: newPassword,
         });
-
-        updateError = fallbackError;
       }
 
-      if (updateError) throw updateError;
 
       toast.success("Mot de passe modifié avec succès");
       setNewPassword("");
